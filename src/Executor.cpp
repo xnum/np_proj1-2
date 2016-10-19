@@ -1,5 +1,6 @@
 #include "Executor.h"
 
+
 Executor::Executor(const Command& cmd)
 {
     cmdHnd = cmd;
@@ -21,47 +22,6 @@ int Executor::PipeWith(Executor& rhs) {
     else {
         printf("pipe error");
     }
-    return 0;
-}
-
-int Executor::Start(const vector<Executor>& pgrp, int index)
-{
-    char* const* argv = cmdHnd.toArgv();
-
-    pid_t rc = fork();
-
-    if( rc < 0 ) { // fail
-        cout << "Fork() error" << endl;
-        return rc;
-    }
-
-    if( rc == 0 ) { // child
-		if(index==0)setpgid(0,0);
-        if( cmdHnd.redirectStdout != "" )
-            freopen(cmdHnd.redirectStdout.c_str(), "w+", stdout);
-        if( cmdHnd.redirectStdin != "" )
-            freopen(cmdHnd.redirectStdin.c_str(), "r+", stdin);
-        if( fd[0][0] != -1 ) {
-            dup2(fd[0][0],0);
-            close(fd[0][1]);
-			fd[0][1] = -1;
-        }
-        if( fd[1][1] != -1 ) {
-            dup2(fd[1][1],1);
-            close(fd[1][0]);
-			fd[1][0] = -1;
-        }
-		CloseAllPipe(pgrp);
-        execvp(argv[0],argv);
-    }
-
-	if( kill(pid, 0) ) {
-		exit(1);
-	}
-
-
-    pid = rc;
-
     return 0;
 }
 

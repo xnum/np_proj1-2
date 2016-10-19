@@ -46,7 +46,9 @@ int ProcessGrouper::Start()
 			dup2(exe.fd[1][1],1);
 		}
 		xnsh::CloseAllPipe(executors);
-		return execvp(argv[0],argv);
+		int ret = execvp(argv[0],argv);
+        dprintf(1,"Unknown command: [%s].\n",argv[0]);
+        return ret;
 	}
 
 	xnsh::CloseAllPipe(executors);

@@ -4,12 +4,58 @@
 
 #include <signal.h>
 
+#include <unistd.h>
+#include <errno.h>
+#include <netdb.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+
 #include "Parser.h"
 #include "InputHandler.h"
 #include "ProcessController.h"
 #include "BuiltinHelper.h"
 
 ProcessController procCtrl;
+
+void buildConnection()
+{
+    int sockfd;
+    int port = 4577;
+
+    if(0 > (sockfd = socket(AF_INET, SOCK_STREAM, 0))) {
+        perror("socket() error");
+    }
+
+    struct sockaddr_in sAddr;
+
+    bzero((char*)&sAddr, sizeof(sAddr));
+    sAddr.sin_family = AF_INET;
+    sAddr.sin_addr.s_addr = INADDR_ANY;
+    sAddr.sin_port = htons(port);
+
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sAddr, sizeof(sAddr));
+
+    if(0 > bind(sockfd, (struct sockaddr*)&sAddr, sizeof(sAddr))) {
+        perror("bind() error");
+    }
+
+    if(0 > listen(sockfd, 3)) {
+        perror("listen() error");
+    }
+
+    struct sockaddr_in cAddr;
+    socklen_t len = sizeof(cAddr);
+    bzero((char*)&cAddr, sizeof(cAddr));
+
+    int connfd;
+    if(0 > (connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len))) {
+        perror("accept() error");
+    }
+
+    dup2(connfd,0);
+    dup2(connfd,1);
+}
 
 void waitProc()
 {
@@ -52,10 +98,16 @@ int main()
 	signal(SIGTSTP, backToShell);
 	string line;
 
+    buildConnection();
+
+    puts("****************************************");
+    puts("** Welcome to the information server. **");
+    puts("****************************************");
+
 	InputHandler InHnd;
 	while( 1 ) {
 		int fg=0;
-		cout << "$ ";
+		cout << "% " << flush;
 		line = InHnd.Getline();
 		if( line == "" ) {
 			procCtrl.TakeTerminalControl(Shell);

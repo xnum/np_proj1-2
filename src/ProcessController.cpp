@@ -33,6 +33,9 @@ int ProcessController::StartProc(bool isfg)
 
 int ProcessController::TakeTerminalControl(pid_t pgid)
 {
+    // useless in WebShell
+    return 0;
+
 	pid_t target = pgid;
 	if( pgid == Shell ) {
 		target = shellPgid;

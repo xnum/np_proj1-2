@@ -64,6 +64,7 @@ bool BuiltinHelper::isStartWith(const string& str, const string& pat)
 
 void BuiltinHelper::GoExit()
 {
+    close(0);
 	exit(0);
 }
 
