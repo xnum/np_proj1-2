@@ -21,13 +21,13 @@ bool BuiltinHelper::IsSupportCmd(string line)
 	return false;
 }
 
-int BuiltinHelper::RunBuiltinCmd(string line, EnvironManager& envMan)
+int BuiltinHelper::RunBuiltinCmd(string line)
 {
 	if( isStartWith(line, "quit") || isStartWith(line, "exit") )
 		GoExit();
 
 	if( isStartWith(line, "printenv") || isStartWith(line, "setenv") ) {
-		EnvHelper(line, envMan);
+		EnvHelper(line);
 		return Success;
 	}
 
@@ -69,7 +69,7 @@ void BuiltinHelper::GoExit()
 	exit(0);
 }
 
-void BuiltinHelper::EnvHelper(const string& line, EnvironManager &envMan)
+void BuiltinHelper::EnvHelper(const string& line)
 {
 	int fg;
 	auto cmds = Parser::Parse(line,fg);
@@ -77,12 +77,12 @@ void BuiltinHelper::EnvHelper(const string& line, EnvironManager &envMan)
 
     // % setenv PATH bin
     if( cmd.name == "setenv" && cmd.args.size() == 2 ) {
-        envMan.setenv(cmd.args[0], cmd.args[1]);
+        procCtrl.envManager.setenv(cmd.args[0], cmd.args[1]);
         return;
     } // % printenv PATH
     else if( cmd.name == "printenv" && cmd.args.size() == 1 ) {
         string val = "";
-        if( "" == (val = envMan.getenv(cmd.args[0])) ) {
+        if( "" == (val = procCtrl.envManager.getenv(cmd.args[0])) ) {
 			printf("getenv error: Not Matched\n");
 			return;
         }

@@ -8,7 +8,7 @@ int ProcessController::AddProcGroups(const vector<Executor>& exes, const string&
 	return 0;
 }
 
-int ProcessController::StartProc(bool isfg, NumberedPipeConfig npc)
+int ProcessController::StartProc(bool isfg)
 {
 	if( pgrps.size() == 0 ) {
 		printf("Fatel Error: No processes could be start\n");
@@ -16,7 +16,7 @@ int ProcessController::StartProc(bool isfg, NumberedPipeConfig npc)
 	}
 
 	ProcessGrouper &pgrp = *pgrps.rbegin();
-	if( pgrp.Start(npc) != 0 ) {
+	if( pgrp.Start(npManager.TakeConfig(), envManager.ToEnvp()) != 0 ) {
 		printf("Error: %s\n",strerror(errno));
 		pgrp.PassSignal(SIGKILL);
 		printf("go back");
@@ -177,6 +177,28 @@ void ProcessController::RefreshJobStatus()
 	} while(retry);
 }
 
+string ProcessController::ToPathname(string filename)
+{
+    string paths = envManager.getenv("PATH");
+    replace(paths.begin(), paths.end(), ':', ' ');
+    stringstream ss(paths);
+    string path;
+    while(ss >> path) {
+        string pathname = pwd + '/' + path + '/' + filename;
+        //cout << pathname << endl;
+        if(0 == access(pathname.c_str(), X_OK))
+            return pathname;
+    }
+    return "";
+}
+
+void ProcessController::SetupPwd()
+{
+    char buff[1024] = {};
+    if(NULL == getcwd(buff, 1024))
+        perror("get pwd error");
+    pwd = string(buff);
+}
 
 
 

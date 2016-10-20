@@ -44,6 +44,7 @@ class NumberedPipeManager {
         int CutNumberedPipeToken(string& line);
         void Free();
         NumberedPipeConfig TakeConfig();
+        void Count();
     private:
         vector<NumberedPipe> nps;
         void add(int,NPType);

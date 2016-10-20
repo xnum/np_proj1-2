@@ -22,7 +22,7 @@ class ProcessGrouper {
 		ProcessGrouper(vector<Executor> exes) :
 			executors(exes) {}
 
-		int Start(NumberedPipeConfig);
+		int Start(NumberedPipeConfig,char**);
 		int NotifyTerminated(pid_t);
 		int PassSignal(int sig);
 		pid_t GetPgid();

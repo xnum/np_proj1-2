@@ -16,6 +16,7 @@ string InputHandler::Getline()
     history.push_back(string());
     auto line = history.rbegin();
 
+    bool illegal = false;
     while(1)
     {
         int ch = getch();
@@ -23,6 +24,8 @@ string InputHandler::Getline()
 			return "";
         if(ch == KeyEnter) {
 			putchar('\n');
+            if(illegal)
+                return "";
             return *line;
 		}
 		if(ch == '\033') {
@@ -57,6 +60,10 @@ string InputHandler::Getline()
             printf("\b\033[K");
             if(line->size() > 0)
                 line->pop_back();
+        }
+        if(ch == '/') {
+            printf("DO NOT USE '/'\n");
+            illegal = true;
         }
     }
 }

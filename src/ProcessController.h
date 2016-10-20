@@ -17,13 +17,14 @@ namespace xnsh {
 
 #include "Executor.h"
 #include "ProcessGrouper.h"
+#include "EnvironManager.h"
 
 using xnsh::ProcessController;
 
 class ProcessController {
 	public:
 		int AddProcGroups(const vector<Executor>&, const string& cmd);
-		int StartProc(bool isfg, NumberedPipeConfig);
+		int StartProc(bool isfg);
 		int TakeTerminalControl(pid_t);
 		void SetShellPgid(pid_t p) { shellPgid = p; }
 		int FreeProcess(pid_t);
@@ -33,6 +34,12 @@ class ProcessController {
 		int BringToBack(int index);
 		void printJobs();
 		void RefreshJobStatus();
+        string ToPathname(string filename);
+        void SetupPwd();
+
+        EnvironManager envManager;
+        NumberedPipeManager npManager;
+        string pwd;
 	private:
 		vector<ProcessGrouper> pgrps;
 		int fgIndex;

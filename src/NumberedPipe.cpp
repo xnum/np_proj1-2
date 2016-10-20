@@ -51,10 +51,10 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
             it->used = false;
             if(it->fd[0] == UNINIT && it->fd[1] == UNINIT) {
                 pipe(it->fd);
-                printf("Create Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
+                //printf("Create Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
             }
             else {
-                printf("Use Exist Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
+                //printf("Use Exist Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
             }
 
             if(it->type==ERR)
@@ -67,6 +67,14 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
     return npc;
 }
 
+void NumberedPipeManager::Count()
+{
+    for(auto it = nps.begin() ; it != nps.end() ; ++it) {
+        it->redirCount--;
+    }
+}
+
+
 void NumberedPipeManager::Free()
 {
     bool done = true;
@@ -74,7 +82,7 @@ void NumberedPipeManager::Free()
         done = true;
         for(auto it = nps.begin() ; it != nps.end() ; ++it) {
             if(it->redirCount<0) {
-                printf("Close Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
+                //printf("Close Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
                 close(it->fd[0]);
                 close(it->fd[1]);
                 nps.erase(it);

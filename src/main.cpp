@@ -15,7 +15,6 @@
 #include "InputHandler.h"
 #include "ProcessController.h"
 #include "BuiltinHelper.h"
-#include "EnvironManager.h"
 
 ProcessController procCtrl;
 
@@ -56,6 +55,7 @@ void buildConnection()
 
     dup2(connfd,0);
     dup2(connfd,1);
+    dup2(connfd,2);
 }
 
 void waitProc()
@@ -93,6 +93,7 @@ void backToShell(int sig __attribute__((unused))) {
 int main()
 {
 	procCtrl.SetShellPgid(getpgid(getpid()));
+    procCtrl.SetupPwd();
 	
 	signal(SIGTTOU, SIG_IGN);
 	signal(SIGTTIN, SIG_IGN);
@@ -104,28 +105,27 @@ int main()
     puts("****************************************");
     puts("** Welcome to the information server. **");
     puts("****************************************");
-
-    EnvironManager envManager;
-    NumberedPipeManager npManager;
+    printf("* Your Directory: %s\n",procCtrl.pwd.c_str());
 
 	InputHandler InHnd;
 	while( 1 ) {
-        npManager.Free();
+        procCtrl.npManager.Free();
 		int fg=0;
 		cout << "% " << flush;
 		line = InHnd.Getline();
 		if( line == "" ) {
-			procCtrl.TakeTerminalControl(Shell);
-			procCtrl.RefreshJobStatus();
-			printf("\b\b  \b\b");
+			//procCtrl.TakeTerminalControl(Shell);
+			//procCtrl.RefreshJobStatus();
+			//printf("\b\b  \b\b");
 			continue;
 		}
 		else if( BuiltinHelper::IsSupportCmd(line) ) {
-			if( Wait != BuiltinHelper::RunBuiltinCmd(line, envManager) )
+            procCtrl.npManager.Count();
+			if( Wait != BuiltinHelper::RunBuiltinCmd(line) )
                 continue;
 		}
 		else {
-            npManager.CutNumberedPipeToken(line);
+            procCtrl.npManager.CutNumberedPipeToken(line);
             vector<Command> cmds;
             if( !Parser::IsExpandable(line) ) {
                 cmds = Parser::Parse(line,fg);
@@ -133,17 +133,27 @@ int main()
             else {
                 cmds = Parser::ParseGlob(line,fg);
 
-                if(cmds.size() == 0)
-                    continue;
             }
 
+            if(cmds.size() == 0)
+                continue;
+
+            bool cmd404 = false;
             vector<Executor> exes;
-            for( const auto& cmd : cmds ) {
+            for( auto& cmd : cmds ) {
+                string res = procCtrl.ToPathname(cmd.name);
+                if(res == "") {
+                    dprintf(1,"Unknown command: [%s].\n",cmd.name.c_str());
+                    cmd404 = true;
+                }
+                cmd.name = res;
                 exes.emplace_back(Executor(cmd));
             }
 
+            if(cmd404)continue;
+
             procCtrl.AddProcGroups(exes, line);
-            if( Failure == procCtrl.StartProc(fg==0 ? true : false, npManager.TakeConfig()) ) {
+            if( Failure == procCtrl.StartProc(fg==0 ? true : false) ) {
                 continue;
             }
 		}
