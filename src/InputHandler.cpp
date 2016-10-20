@@ -2,7 +2,27 @@
 
 int getch (void)
 {
-    return getchar();
+    int ch;
+    struct termios oldt, newt;
+ 
+    if( -1 == tcgetattr(STDIN_FILENO, &oldt)) {
+        printf("tcgetattr error: %s\n",strerror(errno));
+        exit(1);
+    }
+    memcpy(&newt, &oldt, sizeof(newt));
+    newt.c_lflag &= ~( ECHO | ICANON | ECHOE | ECHOK |
+                       ECHONL | ECHOPRT | ECHOKE | ICRNL);
+    if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &newt)) {
+        printf("tcgetattr error: %s\n",strerror(errno));
+        exit(1);
+    }
+    ch = getchar();
+    if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &oldt)) {
+        printf("tcgetattr error: %s\n",strerror(errno));
+        exit(1);
+    }
+
+    return ch;
 }
 
 enum KeyTable {
@@ -52,7 +72,7 @@ string InputHandler::Getline()
 			continue;
 		}
         if(ch != KeyTab && ch != KeyBackSpace) {
-            //putchar(ch);
+            putchar(ch);
             *line += ch;
         }
 

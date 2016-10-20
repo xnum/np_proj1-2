@@ -222,9 +222,9 @@ int main()
         cout << "% " << flush;
         line = InHnd.Getline();
         if( line == "" ) {
-            //procCtrl.TakeTerminalControl(Shell);
-            //procCtrl.RefreshJobStatus();
-            //printf("\b\b  \b\b");
+            procCtrl.TakeTerminalControl(Shell);
+            procCtrl.RefreshJobStatus();
+            printf("\b\b  \b\b");
             continue;
         }
         else if( BuiltinHelper::IsSupportCmd(line) ) {
