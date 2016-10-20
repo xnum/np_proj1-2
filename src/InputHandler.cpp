@@ -72,7 +72,7 @@ string InputHandler::Getline()
 			continue;
 		}
         if(ch != KeyTab && ch != KeyBackSpace) {
-            putchar(ch);
+            //putchar(ch);
             *line += ch;
         }
 
