@@ -15,6 +15,7 @@
 #include "InputHandler.h"
 #include "ProcessController.h"
 #include "BuiltinHelper.h"
+#include "EnvironManager.h"
 
 ProcessController procCtrl;
 
@@ -104,6 +105,8 @@ int main()
     puts("** Welcome to the information server. **");
     puts("****************************************");
 
+    EnvironManager envManager;
+
 	InputHandler InHnd;
 	while( 1 ) {
 		int fg=0;
@@ -116,7 +119,7 @@ int main()
 			continue;
 		}
 		else if( BuiltinHelper::IsSupportCmd(line) ) {
-			if( Wait != BuiltinHelper::RunBuiltinCmd(line) )
+			if( Wait != BuiltinHelper::RunBuiltinCmd(line, envManager) )
                 continue;
 		}
 		else {

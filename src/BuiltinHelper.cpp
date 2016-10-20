@@ -7,7 +7,8 @@ bool BuiltinHelper::IsSupportCmd(string line)
 		"quit",
 		"exit",
 		"lsjob",
-		"xenv",
+		"setenv",
+		"printenv",
 		"fg",
         "bg"
 	};
@@ -20,13 +21,13 @@ bool BuiltinHelper::IsSupportCmd(string line)
 	return false;
 }
 
-int BuiltinHelper::RunBuiltinCmd(string line)
+int BuiltinHelper::RunBuiltinCmd(string line, EnvironManager& envMan)
 {
 	if( isStartWith(line, "quit") || isStartWith(line, "exit") )
 		GoExit();
 
-	if( isStartWith(line, "xenv") ) {
-		EnvHelper(line);
+	if( isStartWith(line, "printenv") || isStartWith(line, "setenv") ) {
+		EnvHelper(line, envMan);
 		return Success;
 	}
 
@@ -68,34 +69,31 @@ void BuiltinHelper::GoExit()
 	exit(0);
 }
 
-void BuiltinHelper::EnvHelper(const string& line)
+void BuiltinHelper::EnvHelper(const string& line, EnvironManager &envMan)
 {
 	int fg;
 	auto cmds = Parser::Parse(line,fg);
 	const Command& cmd = cmds[0];
 
-	if( cmd.name != "xenv" )
-		goto GUIDE;
-	if( cmd.args[0] == "add" && cmd.args.size() == 3 ) {
-		if( -1 == setenv(cmd.args[1].c_str(), cmd.args[2].c_str(), 1) ) {
-			printf("setenv error: %s\n",strerror(errno));
+    // % setenv PATH bin
+    if( cmd.name == "setenv" && cmd.args.size() == 2 ) {
+        envMan.setenv(cmd.args[0], cmd.args[1]);
+        return;
+    } // % printenv PATH
+    else if( cmd.name == "printenv" && cmd.args.size() == 1 ) {
+        string val = "";
+        if( "" == (val = envMan.getenv(cmd.args[0])) ) {
+			printf("getenv error: Not Matched\n");
 			return;
-		}
-	}
-	else if( cmd.args[0] == "rm" && cmd.args.size() == 2 ) {
-		if( -1 == unsetenv(cmd.args[1].c_str()) ) {
-			printf("unsetenv error: %s\n",strerror(errno));
-			return;
-		}
-	}
-	else
-		goto GUIDE;
-
-		return;
-GUIDE:
-	puts("Command Example: ");
-	puts("$ xenv add LANG C");
-	puts("$ xenv rm LANG");
+        }
+        else
+            printf("%s=%s\n",cmd.args[0].c_str(), val.c_str());
+    }
+    else {
+        puts("Command Example: ");
+        puts("$ setenv PATH bin");
+        puts("$ printenv PATH");
+    }
 }
 
 int BuiltinHelper::BringToFront(const string& line)
