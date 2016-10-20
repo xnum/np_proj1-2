@@ -16,7 +16,6 @@
 #include "ProcessController.h"
 #include "BuiltinHelper.h"
 #include "EnvironManager.h"
-#include "NumberedPipe.h"
 
 ProcessController procCtrl;
 
@@ -111,6 +110,7 @@ int main()
 
 	InputHandler InHnd;
 	while( 1 ) {
+        npManager.Free();
 		int fg=0;
 		cout << "% " << flush;
 		line = InHnd.Getline();
@@ -126,35 +126,25 @@ int main()
 		}
 		else {
             npManager.CutNumberedPipeToken(line);
-            cout << "Command = " << line << endl;
-            continue;
+            vector<Command> cmds;
             if( !Parser::IsExpandable(line) ) {
-                auto cmds = Parser::Parse(line,fg);
-
-                vector<Executor> exes;
-                for( const auto& cmd : cmds )
-                    exes.emplace_back(Executor(cmd));
-
-                procCtrl.AddProcGroups(exes, line);
-                if( Failure == procCtrl.StartProc(fg==0 ? true : false) ) {
-                    continue;
-                }
+                cmds = Parser::Parse(line,fg);
             }
             else {
-                auto cmds = Parser::ParseGlob(line,fg);
+                cmds = Parser::ParseGlob(line,fg);
 
                 if(cmds.size() == 0)
                     continue;
+            }
 
-                vector<Executor> exes;
-                for( const auto& cmd : cmds ) {
-                    exes.emplace_back(Executor(cmd));
-                }
+            vector<Executor> exes;
+            for( const auto& cmd : cmds ) {
+                exes.emplace_back(Executor(cmd));
+            }
 
-                procCtrl.AddProcGroups(exes, line);
-                if( Failure == procCtrl.StartProc(fg==0 ? true : false) ) {
-                    continue;
-                }
+            procCtrl.AddProcGroups(exes, line);
+            if( Failure == procCtrl.StartProc(fg==0 ? true : false, npManager.TakeConfig()) ) {
+                continue;
             }
 		}
 

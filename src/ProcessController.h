@@ -23,7 +23,7 @@ using xnsh::ProcessController;
 class ProcessController {
 	public:
 		int AddProcGroups(const vector<Executor>&, const string& cmd);
-		int StartProc(bool isfg);
+		int StartProc(bool isfg, NumberedPipeConfig);
 		int TakeTerminalControl(pid_t);
 		void SetShellPgid(pid_t p) { shellPgid = p; }
 		int FreeProcess(pid_t);

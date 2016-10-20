@@ -1,24 +1,50 @@
 #pragma once
 
+#include <cstdio>
+#include <vector>
 #include <string>
 #include <sstream>
+#include <unistd.h>
 
 using namespace std;
 
+#define UNINIT -1
+
+enum NPType {
+    OUT,
+    ERR
+};
+
 class NumberedPipe {
     public:
-        int redirOut;
-        int redirErr;
-        NumberedPipe() : redirOut(-1) ,redirErr(-1) {}
-        void Print() {
-            printf("redirOut = %d ,redirErr = %d\n",redirOut,redirErr);
+        int redirCount;
+        NPType type;
+        bool used;
+        int fd[2];
+        NumberedPipe(int a,NPType b,bool c)
+         : redirCount(a) ,type(b), used(c) {
+            fd[0] = UNINIT;
+            fd[1] = UNINIT;
         }
+
+        void Print() {
+        }
+};
+
+class NumberedPipeConfig {
+    public:
+        int firstStdin;
+        int lastStdout;
+        int lastStderr;
 };
 
 class NumberedPipeManager {
     public:
-        NumberedPipeManager() : count(0) {} 
+        NumberedPipeManager() {} 
         int CutNumberedPipeToken(string& line);
+        void Free();
+        NumberedPipeConfig TakeConfig();
     private:
-        int count;
+        vector<NumberedPipe> nps;
+        void add(int,NPType);
 };

@@ -8,7 +8,7 @@ int ProcessController::AddProcGroups(const vector<Executor>& exes, const string&
 	return 0;
 }
 
-int ProcessController::StartProc(bool isfg)
+int ProcessController::StartProc(bool isfg, NumberedPipeConfig npc)
 {
 	if( pgrps.size() == 0 ) {
 		printf("Fatel Error: No processes could be start\n");
@@ -16,7 +16,7 @@ int ProcessController::StartProc(bool isfg)
 	}
 
 	ProcessGrouper &pgrp = *pgrps.rbegin();
-	if( pgrp.Start() != 0 ) {
+	if( pgrp.Start(npc) != 0 ) {
 		printf("Error: %s\n",strerror(errno));
 		pgrp.PassSignal(SIGKILL);
 		printf("go back");

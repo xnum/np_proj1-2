@@ -1,10 +1,12 @@
 #include "ProcessGrouper.h"
 
-int ProcessGrouper::Start()
+int ProcessGrouper::Start(NumberedPipeConfig npc)
 {
 	for( size_t i = 0 ; i < executors.size()-1 ; ++i ) {
 		executors[i].PipeWith(executors[i+1]);
 	}
+
+    printf("%d %d %d\n",npc.firstStdin,npc.lastStdout,npc.lastStderr);
 
 	for( size_t i = 0 ; i < executors.size() ; ++i ) {
 		Executor &exe = executors[i];
@@ -34,6 +36,19 @@ int ProcessGrouper::Start()
 		signal(SIGQUIT, SIG_DFL);
 		signal(SIGTSTP, SIG_DFL);
 		signal(SIGCONT, SIG_DFL);
+
+        if( i == 0 && npc.firstStdin != UNINIT ) {
+            printf("Take Stdin With %d\n",npc.firstStdin);
+            dup2(npc.firstStdin,fileno(stdin));
+        }
+        if( i+1 == executors.size() && npc.lastStderr != UNINIT ) {
+            printf("Take Stderr With %d\n",npc.lastStderr);
+            dup2(npc.lastStderr,fileno(stderr));
+        }
+        if( i+1 == executors.size() && npc.lastStdout != UNINIT ) {
+            printf("Take Stdout With %d\n",npc.lastStdout);
+            dup2(npc.lastStdout,fileno(stdout));
+        }
 
 		if( exe.cmdHnd.redirectStdout != "" )
 			freopen(exe.cmdHnd.redirectStdout.c_str(), "w+", stdout);

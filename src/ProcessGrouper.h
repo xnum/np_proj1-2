@@ -1,5 +1,6 @@
 #pragma once
 
+#include "NumberedPipe.h"
 #include "Executor.h"
 
 namespace xnsh {
@@ -21,7 +22,7 @@ class ProcessGrouper {
 		ProcessGrouper(vector<Executor> exes) :
 			executors(exes) {}
 
-		int Start();
+		int Start(NumberedPipeConfig);
 		int NotifyTerminated(pid_t);
 		int PassSignal(int sig);
 		pid_t GetPgid();
