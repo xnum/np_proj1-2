@@ -43,7 +43,7 @@ string InputHandler::Getline()
 		if(ch == EOF)
 			return "";
         if(ch == KeyEnter) {
-			putchar('\n');
+			//putchar('\n');
             if(illegal)
                 return "";
             return *line;

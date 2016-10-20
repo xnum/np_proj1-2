@@ -44,6 +44,7 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
         if( i+1 == executors.size() && npc.lastStderr != UNINIT ) {
             //printf("Take Stderr With %d\n",npc.lastStderr);
             dup2(npc.lastStderr,fileno(stderr));
+            dup2(npc.lastStderr,fileno(stdout));
         }
         if( i+1 == executors.size() && npc.lastStdout != UNINIT ) {
             //printf("Take Stdout With %d\n",npc.lastStdout);
