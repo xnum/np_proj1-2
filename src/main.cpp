@@ -16,6 +16,7 @@
 #include "ProcessController.h"
 #include "BuiltinHelper.h"
 #include "EnvironManager.h"
+#include "NumberedPipe.h"
 
 ProcessController procCtrl;
 
@@ -106,6 +107,7 @@ int main()
     puts("****************************************");
 
     EnvironManager envManager;
+    NumberedPipeManager npManager;
 
 	InputHandler InHnd;
 	while( 1 ) {
@@ -123,6 +125,9 @@ int main()
                 continue;
 		}
 		else {
+            npManager.CutNumberedPipeToken(line);
+            cout << "Command = " << line << endl;
+            continue;
             if( !Parser::IsExpandable(line) ) {
                 auto cmds = Parser::Parse(line,fg);
 
