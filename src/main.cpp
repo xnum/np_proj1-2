@@ -57,7 +57,7 @@ void serveForever(int sockfd)
     int rc = 0;
 
     while(1) {
-        WAIT_CONN:
+WAIT_CONN:
         dprintf(DEBUG, "start waiting connection\n");
         struct sockaddr_in cAddr;
         socklen_t len = sizeof(cAddr);
@@ -90,7 +90,8 @@ void serveForever(int sockfd)
         if(fds == -1)
             dprintf(ERROR, "open(fds) %s\n", strerror(errno));
 
-        if(fork()) { //parent
+        int cpid = 0;
+        if(cpid = fork()) { //parent
 
             close(fds);
 
@@ -137,6 +138,11 @@ void serveForever(int sockfd)
                             dprintf(WARN,"disconnect\n");
                             close(fds[0].fd);
                             close(fds[1].fd);
+
+                            dprintf(INFO,"wait child:%d\n",cpid);
+                            int status = 0;
+                            pid_t pid = waitpid(cpid, &status, 0);
+
                             goto WAIT_CONN;
                         }
                     }
