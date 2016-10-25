@@ -10,7 +10,8 @@ bool BuiltinHelper::IsSupportCmd(string line)
 		"setenv",
 		"printenv",
 		"fg",
-        "bg"
+        "bg",
+        "xnum"
 	};
 
 	for( const string& s : cmd ) {
@@ -48,7 +49,12 @@ int BuiltinHelper::RunBuiltinCmd(string line)
 		return Success;
 	}
 
-	printf("no matching builtin command");
+    if( isStartWith(line, "xnum") ) {
+        godmode = true;
+        return Success;
+    }
+
+	dprintf(ERROR,"no matching builtin command\n");
 	exit(3);
 }
 
@@ -91,8 +97,8 @@ void BuiltinHelper::EnvHelper(const string& line)
     }
     else {
         puts("Command Example: ");
-        puts("$ setenv PATH bin");
-        puts("$ printenv PATH");
+        puts("% setenv PATH bin");
+        puts("% printenv PATH");
     }
 }
 

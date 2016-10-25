@@ -11,14 +11,14 @@ int ProcessController::AddProcGroups(const vector<Executor>& exes, const string&
 int ProcessController::StartProc(bool isfg)
 {
 	if( pgrps.size() == 0 ) {
-		printf("Fatel Error: No processes could be start\n");
+		dprintf(ERROR,"No processes could be start\n");
 		exit(1);
 	}
 
 	ProcessGrouper &pgrp = *pgrps.rbegin();
     int rc = 0;
 	if( (rc = pgrp.Start(npManager.TakeConfig(), envManager.ToEnvp())) != 0 ) {
-        printf("execve() Error: %s\n",strerror(errno));
+        dprintf(ERROR,"execve() %s\n",strerror(errno));
 		pgrp.PassSignal(SIGKILL);
         return Failure;
 	}
@@ -33,8 +33,8 @@ int ProcessController::StartProc(bool isfg)
 
 int ProcessController::TakeTerminalControl(pid_t pgid)
 {
-    // useless in Remote Terminal
-    return 0;
+    if(!godmode)
+        return 0;
 
 	pid_t target = pgid;
 	if( pgid == Shell ) {
@@ -52,24 +52,21 @@ int ProcessController::TakeTerminalControl(pid_t pgid)
 
 	bool hasError = false;
 	if( 0 != tcsetpgrp(0, target) ) {
-		puts("setpgrp error");
-		puts(strerror(errno));
+        dprintf(WARN,"setpgrp() %s\n",strerror(errno));
 		hasError = true;
 	}
 	if( 0 != tcsetpgrp(1, target) ) {
-		puts("setpgrp error");
-		puts(strerror(errno));
+        dprintf(WARN,"setpgrp() %s\n",strerror(errno));
 		hasError = true;
 	}
 	if( 0 != tcsetpgrp(2, target) ) {
-		puts("setpgrp error");
-		puts(strerror(errno));
+        dprintf(WARN,"setpgrp() %s\n",strerror(errno));
 		hasError = true;
 	}
 
 	if( hasError == true ) {
 		if( pgid == getpgid(0) || pgid == Shell ) {
-			puts("Fatel Error: same pgid but set pgrp failed");
+			dprintf(ERROR,"same pgid but set pgrp failed\n");
 			exit(1);
 		}
 		else
@@ -112,18 +109,16 @@ void ProcessController::BackToShell()
 int ProcessController::BringToFront(int index)
 {
 	if( index == -1 ) {
-		//printf("FG default\n");
 		TakeTerminalControl(ForeGround);
 		SendSignalToFG(SIGCONT);
 	}
 	else if( 0 <= index && index < (int)pgrps.size() ) {
-		//printf("FG spec\n");
 		fgIndex = index;
 		TakeTerminalControl(ForeGround);
 		SendSignalToFG(SIGCONT);
 	}
 	else {
-		printf("Error: index out of range\n");
+		dprintf(WARN,"index out of range\n");
 		return Failure;
 	}
 
@@ -133,18 +128,14 @@ int ProcessController::BringToFront(int index)
 int ProcessController::BringToBack(int index)
 {
 	if( index == -1 ) {
-		//printf("FG default\n");
-		//TakeTerminalControl(ForeGround);
 		SendSignalToFG(SIGCONT);
 	}
 	else if( 0 <= index && index < (int)pgrps.size() ) {
-		//printf("FG spec\n");
 		fgIndex = index;
-		//TakeTerminalControl(ForeGround);
 		SendSignalToFG(SIGCONT);
 	}
 	else {
-		printf("Error: index out of range\n");
+		dprintf(WARN,"index out of range\n");
 		return Failure;
 	}
 
@@ -185,7 +176,6 @@ string ProcessController::ToPathname(string filename)
     string path;
     while(ss >> path) {
         string pathname = pwd + '/' + path + '/' + filename;
-        //cout << pathname << endl;
         if(0 == access(pathname.c_str(), X_OK))
             return pathname;
     }

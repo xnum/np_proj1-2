@@ -1,7 +1,9 @@
 #pragma once
 
+#include "Logger.h"
 #include "NumberedPipe.h"
 #include "Executor.h"
+
 
 namespace xnsh {
 	class ProcessGrouper;

@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <sys/ioctl.h>
 
+#include "Logger.h"
 #include "Parser.h"
 #include "InputHandler.h"
 #include "ProcessController.h"
@@ -26,7 +27,7 @@ int buildConnection()
     int port = 4577;
 
     if(0 > (sockfd = socket(AF_INET, SOCK_STREAM, 0))) {
-        perror("socket() error");
+        dprintf(ERROR, "socket() %s\n", strerror(errno));
     }
 
     struct sockaddr_in sAddr;
@@ -39,54 +40,61 @@ int buildConnection()
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sAddr, sizeof(sAddr));
 
     if(0 > bind(sockfd, (struct sockaddr*)&sAddr, sizeof(sAddr))) {
-        perror("bind() error");
+        dprintf(ERROR, "bind() %s\n", strerror(errno));
     }
 
     if(0 > listen(sockfd, 3)) {
-        perror("listen() error");
+        dprintf(ERROR, "listen() %s\n", strerror(errno));
     }
+
+    dprintf(DEBUG, "success: return sockfd %d\n", sockfd);
 
     return sockfd;
 }
 
 void serveForever(int sockfd)
 {
-    struct sockaddr_in cAddr;
-    socklen_t len = sizeof(cAddr);
-    bzero((char*)&cAddr, sizeof(cAddr));
-
     int rc = 0;
 
     while(1) {
+        WAIT_CONN:
+        dprintf(DEBUG, "start waiting connection\n");
+        struct sockaddr_in cAddr;
+        socklen_t len = sizeof(cAddr);
+        bzero((char*)&cAddr, sizeof(cAddr));
 
-    WAIT_CONN:
         int connfd;
         if(0 > (connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len))) {
-            perror("accept() error");
+            dprintf(ERROR, "accept() %s\n", strerror(errno));
         }
+
+        dprintf(DEBUG, "connection established\n");
 
         int fdm = posix_openpt(O_RDWR);
         if(fdm < 0) {
-            printf("posix_openpt() Error:%s\n",strerror(errno));
+            dprintf(ERROR, "posix_openpt() %s\n", strerror(errno));
             exit(1);
         }
 
         if(0 != grantpt(fdm)) {
-            printf("grantpt() Error:%s\n",strerror(errno));
+            dprintf(ERROR, "grantpt() %s\n", strerror(errno));
             exit(1);
         }
 
         if(0 != unlockpt(fdm)) {
-            printf("unlockpt() Error:%s\n",strerror(errno));
+            dprintf(ERROR, "unlockpt() %s\n", strerror(errno));
             exit(1);
         }
 
         int fds = open(ptsname(fdm), O_RDWR);
+        if(fds == -1)
+            dprintf(ERROR, "open(fds) %s\n", strerror(errno));
 
         if(fork()) { //parent
 
             close(fds);
 
+            dprintf(DEBUG, "start serving connection\n");
             while(1) {
                 char buff[256] = {};
 
@@ -99,7 +107,7 @@ void serveForever(int sockfd)
                 rc = poll(fds, 2, -1);
 
                 if(rc == -1) {
-                    printf("select() Error:%s\n",strerror(errno));
+                    dprintf(ERROR, "poll() %s\n",strerror(errno));
                     exit(1);
                 }
                 else if(rc > 0) {
@@ -108,7 +116,7 @@ void serveForever(int sockfd)
                         if(rc > 0)
                             write(fds[1].fd, buff, rc);
                         else if(rc < 0) {
-                            printf("read() connfd Error:%s\n",strerror(errno));
+                            dprintf(ERROR,"read() fdm %s\n",strerror(errno));
                             exit(1);
                         }
                     }
@@ -118,7 +126,7 @@ void serveForever(int sockfd)
                         if(rc > 0)
                             write(fds[0].fd, buff, rc);
                         else if(rc < 0) {
-                            printf("read() connfd Error:%s\n",strerror(errno));
+                            dprintf(ERROR,"read() connfd Error:%s\n",strerror(errno));
                             exit(1);
                         }
                     }
@@ -126,7 +134,7 @@ void serveForever(int sockfd)
                     /* connfd or fdm exited */
                     for(int i = 0 ; i < 2 ; ++i) {
                         if(fds[i].revents & POLLHUP || fds[i].revents & POLLERR) {
-                            fprintf(stderr,"connect over");
+                            dprintf(WARN,"disconnect\n");
                             close(fds[0].fd);
                             close(fds[1].fd);
                             goto WAIT_CONN;
@@ -185,7 +193,7 @@ void waitProc()
             // do until errno == ECHILD
             // means no more child 
             if(errno != ECHILD)
-                printf("waitpid error: %s\n",strerror(errno));
+                dprintf(ERROR,"waitpid %s\n",strerror(errno));
             break;
         }
 
@@ -224,7 +232,7 @@ int main()
     puts("****************************************");
     puts("** Welcome to the information server. **");
     puts("****************************************");
-    printf("* Your Directory: %s\n",procCtrl.pwd.c_str());
+    printf("* Your Directory: %s *\n",procCtrl.pwd.c_str());
 
     InputHandler InHnd;
     while( 1 ) {
@@ -251,7 +259,6 @@ int main()
             }
             else {
                 cmds = Parser::ParseGlob(line,fg);
-
             }
 
             if(cmds.size() == 0)
@@ -262,11 +269,14 @@ int main()
             for( auto& cmd : cmds ) {
                 cmd.filename = cmd.name;
                 string res = procCtrl.ToPathname(cmd.name);
-                if(res == "") {
-                    dprintf(1,"Unknown command: [%s].\n",cmd.name.c_str());
-                    cmd404 = true;
+                if(!godmode) {
+                    if(res == "") {
+                        fprintf(stderr,"Unknown command: [%s].\n",cmd.name.c_str());
+                        cmd404 = true;
+                        break;
+                    }
+                    cmd.name = res;
                 }
-                cmd.name = res;
                 exes.emplace_back(Executor(cmd));
             }
 

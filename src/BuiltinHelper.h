@@ -1,6 +1,7 @@
 #pragma once
 #include "ProcessController.h"
 #include "EnvironManager.h"
+#include "Logger.h"
 
 extern ProcessController procCtrl;
 

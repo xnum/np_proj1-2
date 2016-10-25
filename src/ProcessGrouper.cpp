@@ -68,8 +68,10 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
         if( prev_pipe != -1 ) {
             dup2(prev_pipe,0);
         }
-		int ret = execve(argv[0],argv,envp);
-        return ret;
+        if( !godmode )
+            return execve(argv[0],argv,envp);
+        else
+            return execvp(argv[0],argv);
 	}
 
 	return 0;
