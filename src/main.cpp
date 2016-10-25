@@ -260,6 +260,7 @@ int main()
             bool cmd404 = false;
             vector<Executor> exes;
             for( auto& cmd : cmds ) {
+                cmd.filename = cmd.name;
                 string res = procCtrl.ToPathname(cmd.name);
                 if(res == "") {
                     dprintf(1,"Unknown command: [%s].\n",cmd.name.c_str());
@@ -269,14 +270,19 @@ int main()
                 exes.emplace_back(Executor(cmd));
             }
 
-            if(cmd404)continue;
+            if(cmd404) {
+                procCtrl.npManager.Count();
+                continue;
+            }
 
             procCtrl.AddProcGroups(exes, line);
-            if( Failure == procCtrl.StartProc(fg==0 ? true : false) ) {
+            int rc = procCtrl.StartProc(fg==0 ? true : false);
+            if( rc == Failure ) {
                 continue;
             }
         }
 
+        // if StartProc got Success
         if(fg == 0)waitProc();
     }
 

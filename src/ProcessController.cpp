@@ -16,11 +16,11 @@ int ProcessController::StartProc(bool isfg)
 	}
 
 	ProcessGrouper &pgrp = *pgrps.rbegin();
-	if( pgrp.Start(npManager.TakeConfig(), envManager.ToEnvp()) != 0 ) {
-		printf("Error: %s\n",strerror(errno));
+    int rc = 0;
+	if( (rc = pgrp.Start(npManager.TakeConfig(), envManager.ToEnvp())) != 0 ) {
+        printf("execve() Error: %s\n",strerror(errno));
 		pgrp.PassSignal(SIGKILL);
-		printf("go back");
-		return Failure;
+        return Failure;
 	}
 
 	fgIndex = pgrps.size() -1;

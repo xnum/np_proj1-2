@@ -44,7 +44,9 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
 
     for(auto it = nps.begin() ; it != nps.end() ; ++it) {
         if(it->redirCount-- == 0) {
+            //printf("Close Pipe [%d]\n",it->fd[1]);
             close(it->fd[1]);
+            it->fd[1] = -1;
             npc.firstStdin = it->fd[0];
         }
         if(it->used) {
@@ -83,8 +85,8 @@ void NumberedPipeManager::Free()
         for(auto it = nps.begin() ; it != nps.end() ; ++it) {
             if(it->redirCount<0) {
                 //printf("Close Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
-                close(it->fd[0]);
-                close(it->fd[1]);
+                if(it->fd[0]!=-1)close(it->fd[0]);
+                if(it->fd[1]!=-1)close(it->fd[1]);
                 nps.erase(it);
                 done = false;
                 break;

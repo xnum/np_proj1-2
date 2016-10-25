@@ -20,7 +20,7 @@ int Executor::PipeWith(Executor& rhs) {
         rhs.fd[0][1] = pfd[1];
     }
     else {
-        printf("pipe error");
+        printf("pipe error: %s\n",strerror(errno));
     }
     return 0;
 }

@@ -29,6 +29,7 @@ enum CommandResult {
 class Command {
     public:
         string name;
+        string filename;
         vector<string> args; 
         string redirectStdout;
         string redirectStdin;

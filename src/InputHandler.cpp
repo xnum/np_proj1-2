@@ -6,19 +6,19 @@ int getch (void)
     struct termios oldt, newt;
  
     if( -1 == tcgetattr(STDIN_FILENO, &oldt)) {
-        printf("tcgetattr error: %s\n",strerror(errno));
+        printf("0 tcgetattr error: %s\n",strerror(errno));
         exit(1);
     }
     memcpy(&newt, &oldt, sizeof(newt));
     newt.c_lflag &= ~( ECHO | ICANON | ECHOE | ECHOK |
                        ECHONL | ECHOPRT | ECHOKE | ICRNL);
     if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &newt)) {
-        printf("tcgetattr error: %s\n",strerror(errno));
+        printf("1 tcgetattr error: %s\n",strerror(errno));
         exit(1);
     }
     ch = getchar();
     if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &oldt)) {
-        printf("tcgetattr error: %s\n",strerror(errno));
+        printf("2 tcgetattr error: %s\n",strerror(errno));
         exit(1);
     }
 
@@ -71,11 +71,6 @@ string InputHandler::Getline()
 				putchar('D');
 			continue;
 		}
-        if(ch != KeyTab && ch != KeyBackSpace) {
-            //putchar(ch);
-            *line += ch;
-        }
-
         if(ch == KeyBackSpace) {
             printf("\b\033[K");
             if(line->size() > 0)
@@ -85,5 +80,13 @@ string InputHandler::Getline()
             printf("DO NOT USE '/'\n");
             illegal = true;
         }
+        if(ch == 0x0D) {
+            continue;
+        }
+        if(ch != KeyTab && ch != KeyBackSpace) {
+            //putchar(ch);
+            *line += ch;
+        }
+
     }
 }

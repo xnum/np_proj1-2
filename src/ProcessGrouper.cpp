@@ -2,19 +2,31 @@
 
 int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
 {
+    /*
 	for( size_t i = 0 ; i < executors.size()-1 ; ++i ) {
 		executors[i].PipeWith(executors[i+1]);
 	}
+    */
 
     //printf("%d %d %d\n",npc.firstStdin,npc.lastStdout,npc.lastStderr);
 
+    int prev_pipe = -1;
 	for( size_t i = 0 ; i < executors.size() ; ++i ) {
 		Executor &exe = executors[i];
 		char* const* argv = exe.cmdHnd.toArgv();
 
+        int curr_pfd[2] = {}; // 0read(stdin) 1write(stdout)
+        if(i+1 != executors.size()) {
+            if(0 != pipe(curr_pfd)) {
+                //printf("pipe() Error: %s\n",strerror(errno));
+                return -1;
+            }
+            //printf("P %d open %d %d\n",getpid(),curr_pfd[0],curr_pfd[1]);
+        }
+
+        //printf("Fork()\n");
 		pid_t rc = fork();
 		exe.pid = rc;
-
 
 		if( rc < 0 ) { // fail
 			cout << "Fork() error" << endl;
@@ -22,6 +34,16 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
 		}
 
 		if( rc > 0 ) { // parent
+            if(prev_pipe!=-1) {
+                //printf("P %d close %d\n",getpid(),prev_pipe);
+                close(prev_pipe);
+            }
+            if(curr_pfd[1]!=0)
+            {
+                //printf("P %d close %d\n",getpid(),curr_pfd[1]);
+                prev_pipe = curr_pfd[0];
+                close(curr_pfd[1]);
+            }
 			if( i == 0 )
 				pgid = exe.pid;
 			setpgid(executors[i].pid,pgid);
@@ -55,19 +77,21 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
 			freopen(exe.cmdHnd.redirectStdout.c_str(), "w+", stdout);
 		if( exe.cmdHnd.redirectStdin != "" )
 			freopen(exe.cmdHnd.redirectStdin.c_str(), "r", stdin);
-		if( exe.fd[0][0] != -1 ) {
-			dup2(exe.fd[0][0],0);
-		}
-		if( exe.fd[1][1] != -1 ) {
-			dup2(exe.fd[1][1],1);
-		}
-		xnsh::CloseAllPipe(executors);
+        if( curr_pfd[1] != 0 ) {
+            //printf("C %d close %d\n",getpid(),curr_pfd[0]);
+            dup2(curr_pfd[1],1);
+            close(curr_pfd[0]);
+        }
+        if( prev_pipe != -1 ) {
+            //printf("C %d use prev_pipe as stdin %d\n",getpid(),prev_pipe);
+            dup2(prev_pipe,0);
+        }
+		//xnsh::CloseAllPipe(executors);
 		int ret = execve(argv[0],argv,envp);
-        dprintf(1,"Unknown command: [%s].\n",argv[0]);
         return ret;
 	}
 
-	xnsh::CloseAllPipe(executors);
+	//xnsh::CloseAllPipe(executors);
 
 	return 0;
 }
