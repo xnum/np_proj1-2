@@ -11,7 +11,7 @@ int NumberedPipeManager::CutNumberedPipeToken(string& line)
         if(token.size() > 1) {
             if(token[0] == '|') {
                 int n = -1;
-                if(1 == sscanf(token.c_str(), "|%d", &n)) {
+                if(1 == sscanf(token.c_str(), "|%9d", &n)) {
                     add(n,OUT);
                     takeIt = true;
                 }
@@ -19,7 +19,7 @@ int NumberedPipeManager::CutNumberedPipeToken(string& line)
 
             if(token[0] == '!') {
                 int n = -1;
-                if(1 == sscanf(token.c_str(), "!%d", &n)) {
+                if(1 == sscanf(token.c_str(), "!%9d", &n)) {
                     add(n,ERR);
                     takeIt = true;
                 }

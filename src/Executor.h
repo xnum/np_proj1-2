@@ -12,8 +12,6 @@
 
 namespace xnsh {
     class Executor;
-
-	void CloseAllPipe(const vector<Executor>&);
 };
 
 using xnsh::Executor;
@@ -22,12 +20,8 @@ class Executor {
     public:
         bool done;
         pid_t pid;
-        int fd[2][2];
         Command cmdHnd;
 
         Executor(const Command& cmd);
-        int PipeWith(Executor&);
-        int Start(const vector<Executor>&,int);
-
 };
 

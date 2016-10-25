@@ -26,9 +26,6 @@ class NumberedPipe {
             fd[0] = UNINIT;
             fd[1] = UNINIT;
         }
-
-        void Print() {
-        }
 };
 
 class NumberedPipeConfig {

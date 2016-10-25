@@ -33,7 +33,7 @@ int ProcessController::StartProc(bool isfg)
 
 int ProcessController::TakeTerminalControl(pid_t pgid)
 {
-    // useless in WebShell
+    // useless in Remote Terminal
     return 0;
 
 	pid_t target = pgid;
