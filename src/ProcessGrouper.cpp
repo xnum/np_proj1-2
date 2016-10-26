@@ -2,6 +2,12 @@
 
 int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
 {
+	struct rlimit set;
+	getrlimit(RLIMIT_NPROC, &set);
+	int proc_limit = set.rlim_cur /2;
+	//dprintf(INFO, "proc limit = %d\n", proc_limit);
+
+	int counter = 0;
     int prev_pipe = -1;
 	for( size_t i = 0 ; i < executors.size() ; ++i ) {
 		Executor &exe = executors[i];
@@ -34,6 +40,19 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
 			if( i == 0 )
 				pgid = exe.pid;
 			setpgid(executors[i].pid,pgid);
+
+			counter++;
+			if(counter >= proc_limit) {
+				int status = 0;
+				pid_t pid = waitpid(WAIT_ANY, &status, 0 | WUNTRACED);
+				if( pid == -1 ) {
+					dprintf(ERROR,"waitpid %s\n",strerror(errno));
+					return errno;
+				}
+				else {
+					counter--;
+				}
+			}
 			continue;
 		}
 

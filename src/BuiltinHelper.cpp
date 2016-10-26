@@ -1,6 +1,5 @@
 #include "BuiltinHelper.h"
 
-
 bool BuiltinHelper::IsSupportCmd(string line)
 {
 	const string cmd[] = {

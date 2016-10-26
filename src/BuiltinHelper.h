@@ -13,6 +13,7 @@ namespace xnsh {
 
 using xnsh::BuiltinHelper;
 
+
 class BuiltinHelper {
 public:
 	static bool IsSupportCmd(string);

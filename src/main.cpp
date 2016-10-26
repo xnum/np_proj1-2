@@ -21,6 +21,43 @@
 
 ProcessController procCtrl;
 
+int waitProc(bool waitAll = true)
+{
+	int num = 0;
+    while( 1 ) {
+        int status = 0;
+        pid_t pid = waitpid(WAIT_ANY, &status, 0 | WUNTRACED);
+        if( pid == -1 ) {
+            // do until errno == ECHILD
+            // means no more child 
+            if(errno != ECHILD)
+                dprintf(ERROR,"waitpid %s\n",strerror(errno));
+            break;
+        }
+		else {
+			num++;
+		}
+
+        if( WIFEXITED(status) ) {
+            int rc = procCtrl.FreeProcess(pid);
+            if( rc == ProcAllDone ) {
+                procCtrl.TakeTerminalControl(Shell);
+                return num;
+            }
+        }
+        else if( WIFSTOPPED(status) ) {
+            procCtrl.TakeTerminalControl(Shell);
+            return num;
+        }
+
+		if(!waitAll && num != 0)
+			return num;
+    }
+
+	return num;
+}
+
+
 int buildConnection()
 {
     int sockfd;
@@ -190,32 +227,7 @@ WAIT_CONN:
     }
 }
 
-void waitProc()
-{
-    while( 1 ) {
-        int status = 0;
-        pid_t pid = waitpid(WAIT_ANY, &status, 0 | WUNTRACED);
-        if( pid == -1 ) {
-            // do until errno == ECHILD
-            // means no more child 
-            if(errno != ECHILD)
-                dprintf(ERROR,"waitpid %s\n",strerror(errno));
-            break;
-        }
 
-        if( WIFEXITED(status) ) {
-            int rc = procCtrl.FreeProcess(pid);
-            if( rc == ProcAllDone ) {
-                procCtrl.TakeTerminalControl(Shell);
-                return;
-            }
-        }
-        else if( WIFSTOPPED(status) ) {
-            procCtrl.TakeTerminalControl(Shell);
-            return;
-        }
-    }
-}
 
 void backToShell(int sig __attribute__((unused))) {
     procCtrl.BackToShell();
