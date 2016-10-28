@@ -250,7 +250,6 @@ int main()
     puts("****************************************");
     puts("** Welcome to the information server. **");
     puts("****************************************");
-    printf("* Your Directory: %s *\n",procCtrl.pwd.c_str());
 
     InputHandler InHnd;
     while( 1 ) {
