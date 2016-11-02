@@ -3,6 +3,7 @@
 int getch (void)
 {
     int ch;
+	/*
     struct termios oldt, newt;
  
     if( -1 == tcgetattr(STDIN_FILENO, &oldt)) {
@@ -16,11 +17,14 @@ int getch (void)
         printf("1 tcgetattr error: %s\n",strerror(errno));
         exit(1);
     }
+	*/
     ch = getchar();
+	/*
     if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &oldt)) {
         printf("2 tcgetattr error: %s\n",strerror(errno));
         exit(1);
     }
+	*/
 
     return ch;
 }
@@ -75,10 +79,12 @@ string InputHandler::Getline()
             printf("\b\033[K");
             if(line->size() > 0)
                 line->pop_back();
+			continue;
         }
         if(ch == '/') {
             printf("DO NOT USE '/'\n");
             illegal = true;
+			continue;
         }
         if(ch == 0x0D) {
             continue;

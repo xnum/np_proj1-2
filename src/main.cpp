@@ -107,6 +107,7 @@ WAIT_CONN:
 
         dprintf(DEBUG, "connection established\n");
 
+#ifdef USE_PT
         int fdm = posix_openpt(O_RDWR);
         if(fdm < 0) {
             dprintf(ERROR, "posix_openpt() %s\n", strerror(errno));
@@ -224,6 +225,22 @@ WAIT_CONN:
             ioctl(0, TIOCSCTTY, 1);
             return;
         }
+#else
+
+        int cpid = 0;
+		if(cpid = fork()) {
+			close(connfd);
+			int status = 0;
+			pid_t pid = waitpid(cpid, &status, 0);
+			goto WAIT_CONN;
+		}
+		else {
+			dup2(connfd, 0);
+			dup2(connfd, 1);
+			dup2(connfd, 2);
+			return;
+		}
+#endif
     }
 }
 
