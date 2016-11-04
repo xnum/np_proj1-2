@@ -21,13 +21,13 @@ bool BuiltinHelper::IsSupportCmd(string line)
 	return false;
 }
 
-int BuiltinHelper::RunBuiltinCmd(string line)
+int BuiltinHelper::RunBuiltinCmd(ProcessController& procCtrl, string line)
 {
 	if( isStartWith(line, "quit") || isStartWith(line, "exit") )
 		GoExit();
 
 	if( isStartWith(line, "printenv") || isStartWith(line, "setenv") ) {
-		EnvHelper(line);
+		EnvHelper(procCtrl, line);
 		return Success;
 	}
 
@@ -37,13 +37,13 @@ int BuiltinHelper::RunBuiltinCmd(string line)
 	}
 
 	if( isStartWith(line, "fg") ) {
-		if( Failure == BringToFront(line) )
+		if( Failure == BringToFront(procCtrl, line) )
 			return Failure;
 		return Wait;
 	}
 
 	if( isStartWith(line, "bg") ) {
-		if( Failure == BringToBack(line) )
+		if( Failure == BringToBack(procCtrl, line) )
 			return Failure;
 		return Success;
 	}
@@ -74,7 +74,7 @@ void BuiltinHelper::GoExit()
 	exit(0);
 }
 
-void BuiltinHelper::EnvHelper(const string& line)
+void BuiltinHelper::EnvHelper(ProcessController& procCtrl, const string& line)
 {
 	int fg;
 	auto cmds = Parser::Parse(line,fg);
@@ -101,7 +101,7 @@ void BuiltinHelper::EnvHelper(const string& line)
     }
 }
 
-int BuiltinHelper::BringToFront(const string& line)
+int BuiltinHelper::BringToFront(ProcessController& procCtrl, const string& line)
 {
 	int fg = 0;
 	auto cmds = Parser::Parse(line,fg);
@@ -116,7 +116,7 @@ int BuiltinHelper::BringToFront(const string& line)
 	return Success;
 }
 
-int BuiltinHelper::BringToBack(const string& line)
+int BuiltinHelper::BringToBack(ProcessController& procCtrl, const string& line)
 {
 	int fg = 0;
 	auto cmds = Parser::Parse(line,fg);
