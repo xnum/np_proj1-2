@@ -59,10 +59,13 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
                 //printf("Use Exist Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
             }
 
-            if(it->type==ERR)
+            if(it->type==ERR) {
                 npc.lastStderr = it->fd[1];
-            if(it->type==OUT)
                 npc.lastStdout = it->fd[1];
+            }
+            if(it->type==OUT) {
+                npc.lastStdout = it->fd[1];
+            }
         }
     }
 
@@ -98,11 +101,13 @@ void NumberedPipeManager::Free()
 void NumberedPipeManager::add(int count,NPType type)
 {
     for(auto it = nps.begin() ; it != nps.end() ; ++it) {
-        if(it->redirCount == count && it->type == type) {
+        if(it->redirCount == count) {
             it->used = true;
+            it->type = type;
             return;
         }
     }
 
+    // first appear
     nps.emplace_back(NumberedPipe(count,type,true));
 }

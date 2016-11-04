@@ -70,7 +70,7 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
         }
         if( i+1 == executors.size() && npc.lastStderr != UNINIT ) {
             dup2(npc.lastStderr,fileno(stderr));
-            dup2(npc.lastStderr,fileno(stdout));
+            //dup2(npc.lastStderr,fileno(stdout));
         }
         if( i+1 == executors.size() && npc.lastStdout != UNINIT ) {
             dup2(npc.lastStdout,fileno(stdout));
