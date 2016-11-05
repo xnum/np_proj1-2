@@ -3,7 +3,8 @@
 enum SimpleRetVal {
 	Failure,
 	Success,
-    Wait
+    Wait,
+    Exit
 };
 
 enum PgidTarget {
@@ -24,6 +25,7 @@ using xnsh::ProcessController;
 
 class ProcessController {
 	public:
+        ProcessController();
 		int AddProcGroups(const vector<Executor>&, const string& cmd);
 		int StartProc(bool isfg);
 		int TakeTerminalControl(pid_t);

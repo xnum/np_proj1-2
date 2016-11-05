@@ -1,5 +1,11 @@
 #include "ProcessController.h"
 
+ProcessController::ProcessController()
+{
+    SetShellPgid(getpgid(getpid()));
+    SetupPwd();
+}
+
 int ProcessController::AddProcGroups(const vector<Executor>& exes, const string& cmd)
 {
 	pgrps.emplace_back(ProcessGrouper(exes));

@@ -3,17 +3,8 @@
 #include <cstdlib>
 
 #include <signal.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
-#include <netdb.h>
-#include <poll.h>
-#include <sys/types.h> 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <sys/ioctl.h>
-#include <sys/epoll.h>
 
+#include "TCPServer.h"
 #include "Logger.h"
 #include "Parser.h"
 #include "InputHandler.h"
@@ -57,37 +48,6 @@ int waitProc(ProcessController& procCtrl, bool waitAll = true)
     return num;
 }
 
-
-int buildConnection()
-{
-    int sockfd;
-    int port = 4577;
-
-    if(0 > (sockfd = socket(AF_INET, SOCK_STREAM, 0))) {
-        dprintf(ERROR, "socket() %s\n", strerror(errno));
-    }
-
-    struct sockaddr_in sAddr;
-
-    bzero((char*)&sAddr, sizeof(sAddr));
-    sAddr.sin_family = AF_INET;
-    sAddr.sin_addr.s_addr = INADDR_ANY;
-    sAddr.sin_port = htons(port);
-
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sAddr, sizeof(sAddr));
-
-    if(0 > bind(sockfd, (struct sockaddr*)&sAddr, sizeof(sAddr))) {
-        dprintf(ERROR, "bind() %s\n", strerror(errno));
-    }
-
-    if(0 > listen(sockfd, 3)) {
-        dprintf(ERROR, "listen() %s\n", strerror(errno));
-    }
-
-    dprintf(DEBUG, "success: return sockfd %d\n", sockfd);
-
-    return sockfd;
-}
 
 void serveForever(int sockfd)
 {
@@ -244,23 +204,19 @@ WAIT_CONN:
     }
 }
 
-void serve(ProcessController& procCtrl, string line)
+int serve(ProcessController& procCtrl, string line)
 {
-    puts("****************************************");
-    puts("** Welcome to the information server. **");
-    puts("****************************************");
 
     procCtrl.npManager.Free();
     int fg=0;
     if( line == "" ) {
         procCtrl.TakeTerminalControl(Shell);
         procCtrl.RefreshJobStatus();
-        return;
+        return 0;
     }
     else if( BuiltinHelper::IsSupportCmd(line) ) {
         procCtrl.npManager.Count();
-        if( Wait != BuiltinHelper::RunBuiltinCmd(procCtrl, line) )
-            return;
+        return BuiltinHelper::RunBuiltinCmd(procCtrl, line);
     }
     else {
         procCtrl.npManager.CutNumberedPipeToken(line);
@@ -273,7 +229,7 @@ void serve(ProcessController& procCtrl, string line)
         }
 
         if(cmds.size() == 0)
-            return;
+            return 0;
 
         bool cmd404 = false;
         vector<Executor> exes;
@@ -293,13 +249,13 @@ void serve(ProcessController& procCtrl, string line)
 
         if(cmd404) {
             procCtrl.npManager.Count();
-            return;
+            return 0;
         }
 
         procCtrl.AddProcGroups(exes, line);
         int rc = procCtrl.StartProc(fg==0 ? true : false);
         if( rc == Failure ) {
-            return;
+            return 0;
         }
     }
 
@@ -308,87 +264,46 @@ void serve(ProcessController& procCtrl, string line)
 
 }
 
-int make_socket_non_blocking (int sfd)
-{
-    int flags, s;
-
-    flags = fcntl (sfd, F_GETFL, 0);
-    if (flags == -1)
-    {
-        dprintf(ERROR,"fcntl");
-        return -1;
-    }
-
-    flags |= O_NONBLOCK;
-    s = fcntl (sfd, F_SETFL, flags);
-    if (s == -1)
-    {
-        dprintf(ERROR,"fcntl");
-        return -1;
-    }
-
-    return 0;
-}
-
 int main()
 {
-    int sockfd = buildConnection();
     //serveForever(sockfd);
 
     signal(SIGTTOU, SIG_IGN);
     signal(SIGTTIN, SIG_IGN);
 
-    struct epoll_event event;
-    struct epoll_event *events;
-    int epoll_fd = epoll_create(50);
-    if(epoll_fd < 0)
-        dprintf(ERROR,"epoll_create %s\n",strerror(errno));
+    map<int,ProcessController> procCtrls;
 
-    make_socket_non_blocking(sockfd);
-    event.data.fd = sockfd;
-    event.events = EPOLLIN | EPOLLET;
-    if(0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockfd, &event))
-        dprintf(ERROR,"epoll_ctl %s\n",strerror(errno));
-    events = (epoll_event*)calloc(50, sizeof(event));
+    TCPServer tcpServ;
+    tcpServ.Init(4577);
+    string line;
+    int connfd;
+    while(T_Success == tcpServ.GetRequest(line, connfd))
+    {
+        dprintf(DEBUG, "serving %d\n",connfd);
 
-    ProcessController procCtrl;
-    //procCtrl.SetShellPgid(getpgid(getpid()));
-    procCtrl.SetupPwd();
-    while(1) {
-        int rc = epoll_wait(epoll_fd, events, 50, -1);
-        for(int i = 0 ; i < rc ; ++i)
-        {
-            if( (events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || !(events[i].events & EPOLLIN)  )
-            {
-                close(events[i].data.fd);
-                continue;
-            }
-            if(sockfd == events[i].data.fd)
-            {
-                while(1) {
-                    struct sockaddr_in cAddr;
-                    socklen_t len = sizeof(cAddr);
-                    bzero((char*)&cAddr, sizeof(cAddr));
+        int stdin_cp = dup(0);
+        int stdout_cp = dup(1);
+        int stderr_cp = dup(2);
 
-                    int connfd;
-                    connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len);
-                    if(connfd < 0) 
-                    {
-                        if(errno == EAGAIN || errno == EWOULDBLOCK)
-                            break;
-                        dprintf(ERROR, "accept() %s\n", strerror(errno));
-                    }
-                    make_socket_non_blocking(connfd);
-                    event.data.fd = connfd;
-                    event.events = EPOLLIN | EPOLLET;
-                    if(0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &event))
-                        dprintf(ERROR, "epoll_ctl");
-                }
-            } 
-            else
-            {
-            }
+        dup2(connfd, 0);
+        dup2(connfd, 1);
+        dup2(connfd, 2);
+
+        if(Exit == serve(procCtrls[connfd], line)) {
+            close(connfd);
+        } else {
+            write(connfd, "% ", 2);
         }
+
+        dup2(stdin_cp, 0);
+        dup2(stdout_cp, 1);
+        dup2(stderr_cp, 2);
+        
+        close(stdin_cp);
+        close(stdout_cp);
+        close(stderr_cp);
+
+        dprintf(DEBUG, "served %d\n",connfd);
     }
 
     puts("dead");

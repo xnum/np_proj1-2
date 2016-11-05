@@ -24,7 +24,7 @@ bool BuiltinHelper::IsSupportCmd(string line)
 int BuiltinHelper::RunBuiltinCmd(ProcessController& procCtrl, string line)
 {
 	if( isStartWith(line, "quit") || isStartWith(line, "exit") )
-		GoExit();
+        return Exit;
 
 	if( isStartWith(line, "printenv") || isStartWith(line, "setenv") ) {
 		EnvHelper(procCtrl, line);
