@@ -11,6 +11,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/ioctl.h>
 
 #include "Logger.h"
@@ -18,8 +19,18 @@
 #include "InputHandler.h"
 #include "ProcessController.h"
 #include "BuiltinHelper.h"
+#include "Message.h"
 
 ProcessController procCtrl;
+MessageCenter msgCenter;
+
+void sig(int signo)
+{
+    if(signo == SIGUSR1)
+    {
+        msgCenter.OpenReadEnd();
+    }
+}
 
 int waitProc(bool waitAll = true)
 {
@@ -89,166 +100,110 @@ int buildConnection()
     return sockfd;
 }
 
+struct Client {
+    int id;
+    int connfd;
+    pid_t pid;
+    Client(int c,int a,pid_t b) : id(c),connfd(a),pid(b) {}
+};
+
 void serveForever(int sockfd)
 {
     int rc = 0;
+    vector<Client> clients;
+    pollfd pfd[1] = { { .fd = sockfd, .events = POLLIN } };
 
     while(1) {
-WAIT_CONN:
-        dprintf(DEBUG, "start waiting connection\n");
-        struct sockaddr_in cAddr;
-        socklen_t len = sizeof(cAddr);
-        bzero((char*)&cAddr, sizeof(cAddr));
+        rc = poll(pfd, 1, 100);
 
-        int connfd;
-        if(0 > (connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len))) {
-            dprintf(ERROR, "accept() %s\n", strerror(errno));
+        if(rc < 0) {
+            dprintf(ERROR, "poll() %s\n", strerror(errno));
         }
-
-        dprintf(DEBUG, "connection established\n");
-
-#ifdef USE_PT
-        int fdm = posix_openpt(O_RDWR);
-        if(fdm < 0) {
-            dprintf(ERROR, "posix_openpt() %s\n", strerror(errno));
-            exit(1);
-        }
-
-        if(0 != grantpt(fdm)) {
-            dprintf(ERROR, "grantpt() %s\n", strerror(errno));
-            exit(1);
-        }
-
-        if(0 != unlockpt(fdm)) {
-            dprintf(ERROR, "unlockpt() %s\n", strerror(errno));
-            exit(1);
-        }
-
-        int fds = open(ptsname(fdm), O_RDWR);
-        if(fds == -1)
-            dprintf(ERROR, "open(fds) %s\n", strerror(errno));
-
-        int cpid = 0;
-        if(cpid = fork()) { //parent
-
-            close(fds);
-
-            dprintf(DEBUG, "start serving connection\n");
+        if(rc == 0) { /* timeout */
+            /* caught defunct */
             while(1) {
-                char buff[256] = {};
-
-                struct pollfd fds[2];
-                fds[0].fd = fdm;
-                fds[1].fd = connfd;
-                fds[0].events = POLLIN;
-                fds[1].events = POLLIN;
-
-                rc = poll(fds, 2, -1);
-
-                if(rc == -1) {
-                    dprintf(ERROR, "poll() %s\n",strerror(errno));
-                    exit(1);
+                int status = 0;
+                pid_t pid = waitpid(0, &status, WNOHANG);
+                if(pid <= 0) {
+                    //dprintf(DEBUG,"waitpid %s\n",strerror(errno));
+                    break;
                 }
-                else if(rc > 0) {
-                    if(fds[0].revents & POLLIN) {
-                        rc = read(fds[0].fd, buff, sizeof(buff));
-                        if(rc > 0)
-                            write(fds[1].fd, buff, rc);
-                        else if(rc < 0) {
-                            dprintf(ERROR,"read() fdm %s\n",strerror(errno));
-                            exit(1);
-                        }
-                    }
+                auto iter = clients.begin();
+                for(; iter != clients.end() ; ++iter) {
+                    if( iter->pid == pid )
+                        break;
+                }
 
-                    if(fds[1].revents & POLLIN) {
-                        rc = read(fds[1].fd, buff, sizeof(buff));
-                        if(rc > 0)
-                            write(fds[0].fd, buff, rc);
-                        else if(rc < 0) {
-                            dprintf(ERROR,"read() connfd Error:%s\n",strerror(errno));
-                            exit(1);
-                        }
-                    }
+                if( iter == clients.end() ) {
+                    dprintf(WARN, "not matched pid\n");
+                } else {
+                    close(iter->connfd);
+                    clients.erase(iter);
+                }
+            }
 
-                    /* connfd or fdm exited */
-                    for(int i = 0 ; i < 2 ; ++i) {
-                        if(fds[i].revents & POLLHUP || fds[i].revents & POLLERR) {
-                            dprintf(WARN,"disconnect\n");
-                            close(fds[0].fd);
-                            close(fds[1].fd);
+            /* broadcast */
+            char msg[2048] = {};
+            if(msgCenter.GetBroadCast(msg,2048)) {
+                for(int i = 0 ; i < clients.size() ; ++i) {
+                    write(clients[i].connfd, msg, strlen(msg));
+                }
+            }
 
-                            dprintf(INFO,"wait child:%d\n",cpid);
-                            int status = 0;
-                            pid_t pid = waitpid(cpid, &status, 0);
+            /* send */
+            for(int i = 0 ; i < clients.size() ; ++i) {
+                for(int j = 0 ; j < clients.size() ; ++j) {
+                    msgCenter.Trans(clients[i].id, clients[j].id, clients[j].connfd);
+                }
+            }
 
-                            goto WAIT_CONN;
-                        }
+            /* notify named pipe */
+            for(int i = 0 ; i < clients.size() ; ++i) {
+                for(int j = 0 ; j < clients.size() ; ++j) {
+                    int r = msgCenter.Notify(clients[i].id, clients[j].id);
+                    if(r == NP_WAIT) {
+                        kill(clients[j].pid,SIGUSR1);
                     }
                 }
             }
         }
-        else { // child
-            struct termios slave_orig_term_settings; // Saved terminal settings
-            struct termios new_term_settings; // Current terminal settings
+        if(rc > 0) {
+            dprintf(DEBUG, "start waiting connection\n");
+            struct sockaddr_in cAddr;
+            socklen_t len = sizeof(cAddr);
+            bzero((char*)&cAddr, sizeof(cAddr));
 
-            // CHILD
+            int connfd;
+            if(0 > (connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len))) {
+                dprintf(ERROR, "accept() %s\n", strerror(errno));
+            }
 
-            // Close the master side of the PTY
-            close(fdm);
-            close(sockfd);
+            dprintf(DEBUG, "connection established\n");
+            char name[] = "(No Name)";
+            char *ip = inet_ntoa(cAddr.sin_addr);
+            char ipp[128] = {};
+            sprintf(ipp,"%s/%d",ip,ntohs(cAddr.sin_port));
 
-            // Save the defaults parameters of the slave side of the PTY
-            rc = tcgetattr(fds, &slave_orig_term_settings);
+            int id = msgCenter.AddUser(connfd, name, ipp);
 
-            // Set RAW mode on slave side of PTY
-            new_term_settings = slave_orig_term_settings;
-            cfmakeraw (&new_term_settings);
-            tcsetattr (fds, TCSANOW, &new_term_settings);
-
-            // The slave side of the PTY becomes the standard input and outputs of the child process
-            close(0); // Close standard input (current terminal)
-            close(1); // Close standard output (current terminal)
-            close(2); // Close standard error (current terminal)
-
-            dup(fds); // PTY becomes standard input (0)
-            dup(fds); // PTY becomes standard output (1)
-            dup(fds); // PTY becomes standard error (2)
-
-            // Now the original file descriptor is useless
-            close(fds);
-
-            // Make the current process a new session leader
-            setsid();
-
-            // As the child is a session leader, set the controlling terminal to be the slave side of the PTY
-            // (Mandatory for programs like the shell to make them manage correctly their outputs)
-            ioctl(0, TIOCSCTTY, 1);
-            return;
+            pid_t cpid = 0;
+            if(0 != (cpid = fork())) {
+                //close(connfd);
+                clients.emplace_back(Client(id,connfd, cpid));
+                continue;
+            }
+            else {
+                msgCenter.self_index = id;
+                dup2(connfd, 0);
+                dup2(connfd, 1);
+                dup2(connfd, 2);
+                for(int i = 0 ; i < clients.size() ; ++i)
+                    close(clients[i].connfd);
+                close(connfd);
+                return;
+            }
         }
-#else
-
-        int cpid = 0;
-		if(cpid = fork()) {
-			close(connfd);
-			int status = 0;
-			pid_t pid = waitpid(cpid, &status, 0);
-			goto WAIT_CONN;
-		}
-		else {
-			dup2(connfd, 0);
-			dup2(connfd, 1);
-			dup2(connfd, 2);
-			return;
-		}
-#endif
     }
-}
-
-
-
-void backToShell(int sig __attribute__((unused))) {
-    procCtrl.BackToShell();
-    return;
 }
 
 int main()
@@ -259,9 +214,10 @@ int main()
     procCtrl.SetShellPgid(getpgid(getpid()));
     procCtrl.SetupPwd();
 
+    //signal(SIGCHLD, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
     signal(SIGTTIN, SIG_IGN);
-    signal(SIGTSTP, backToShell);
+    signal(SIGUSR1, sig);
     string line;
 
     puts("****************************************");
@@ -275,9 +231,6 @@ int main()
         cout << "% " << flush;
         line = InHnd.Getline();
         if( line == "" ) {
-            procCtrl.TakeTerminalControl(Shell);
-            procCtrl.RefreshJobStatus();
-            printf("\b\b  \b\b");
             continue;
         }
         else if( BuiltinHelper::IsSupportCmd(line) ) {
@@ -286,7 +239,16 @@ int main()
                 continue;
         }
         else {
+            string oldline = line;
+            for(int i = 0 ; i < oldline.size(); ++i) {
+               if(oldline[i] == '\r' || oldline[i] == '\n') {
+                   oldline[i] = '\0';
+               } 
+            }
             procCtrl.npManager.CutNumberedPipeToken(line);
+            if(procCtrl.npManager.fifo_write != UNINIT) {
+                msgCenter.MentionNamedPipe(procCtrl.npManager.fifo_write, oldline.c_str()); 
+            }
             vector<Command> cmds;
             if( !Parser::IsExpandable(line) ) {
                 cmds = Parser::Parse(line,fg);
@@ -328,6 +290,9 @@ int main()
 
         // if StartProc got Success
         if(fg == 0)waitProc();
+        if(procCtrl.npManager.fifo_read != UNINIT) {
+            msgCenter.FreeNamedPipe(msgCenter.self_index);
+        }
     }
 
     puts("dead");

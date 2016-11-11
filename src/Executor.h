@@ -9,13 +9,6 @@
 
 #include "Parser.h"
 
-
-namespace xnsh {
-    class Executor;
-};
-
-using xnsh::Executor;
-
 class Executor {
     public:
         bool done;

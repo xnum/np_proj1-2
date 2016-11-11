@@ -18,8 +18,8 @@ int ProcessController::StartProc(bool isfg)
 	ProcessGrouper &pgrp = *pgrps.rbegin();
     int rc = 0;
 	if( (rc = pgrp.Start(npManager.TakeConfig(), envManager.ToEnvp())) != 0 ) {
-        dprintf(ERROR,"execve() %s\n",strerror(errno));
-		pgrp.PassSignal(SIGKILL);
+        //dprintf(WARN,"execve() %s\n",strerror(errno));
+		//pgrp.PassSignal(SIGKILL);
         return Failure;
 	}
 

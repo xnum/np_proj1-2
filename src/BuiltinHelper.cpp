@@ -10,7 +10,11 @@ bool BuiltinHelper::IsSupportCmd(string line)
 		"printenv",
 		"fg",
         "bg",
-        "xnum"
+        "xnum",
+        "who",
+        "name",
+        "tell",
+        "yell"
 	};
 
 	for( const string& s : cmd ) {
@@ -50,6 +54,36 @@ int BuiltinHelper::RunBuiltinCmd(string line)
 
     if( isStartWith(line, "xnum") ) {
         godmode = true;
+        return Success;
+    }
+
+    if( isStartWith(line, "who") ) {
+        msgCenter.ShowUsers(msgCenter.self_index);
+        return Success;
+    }
+
+    if( isStartWith(line, "name") ) {
+        stringstream ss(line);
+        string unused, name;
+        ss >> unused >> name;
+        msgCenter.SetName(msgCenter.self_index,name.c_str());
+        return Success;
+    }
+
+    if( isStartWith(line, "tell") ) {
+        stringstream ss(line);
+        string unused, msg;
+        int sockd;
+        ss >> unused >> sockd >> msg;
+        msgCenter.Send(sockd-1,msg.c_str());
+        return Success;
+    }
+
+    if( isStartWith(line, "yell") ) {
+        stringstream ss(line);
+        string unused, msg;
+        ss >> unused >> msg;
+        msgCenter.AddBroadCast(msg.c_str(),msgCenter.self_index);
         return Success;
     }
 

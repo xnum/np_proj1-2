@@ -3,6 +3,8 @@
 int NumberedPipeManager::CutNumberedPipeToken(string& line)
 {
     string newline;
+    fifo_write = -1;
+    fifo_read = -1;
 
     stringstream ss(line);
     string token;
@@ -24,6 +26,24 @@ int NumberedPipeManager::CutNumberedPipeToken(string& line)
                     takeIt = true;
                 }
             }
+
+            if(token[0] == '>') {
+                int n = -1;
+                if(1 == sscanf(token.c_str(), ">%9d", &n)) {
+                    fifo_write = n-1;
+                    takeIt = true;
+                }
+            }
+
+            if(token[0] == '<') {
+                int n = -1;
+                if(1 == sscanf(token.c_str(), "<%9d", &n)) {
+                    fifo_read = n-1;
+                    takeIt = true;
+                }
+            }
+
+
         }
 
         if(!takeIt)
@@ -41,6 +61,8 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
     npc.firstStdin = UNINIT;
     npc.lastStdout = UNINIT;
     npc.lastStderr = UNINIT;
+    npc.fifo_read = fifo_read;
+    npc.fifo_write = fifo_write;
 
     for(auto it = nps.begin() ; it != nps.end() ; ++it) {
         if(it->redirCount-- == 0) {

@@ -11,16 +11,10 @@ enum PgidTarget {
 	ForeGround = 0
 };
 
-namespace xnsh {
-	class ProcessController;
-};
-
 #include "Logger.h"
 #include "Executor.h"
 #include "ProcessGrouper.h"
 #include "EnvironManager.h"
-
-using xnsh::ProcessController;
 
 class ProcessController {
 	public:

@@ -11,14 +11,6 @@
 
 using namespace std;
 
-namespace xnsh {
-    class Command;
-    class Parser;
-};
-
-using xnsh::Command;
-using xnsh::Parser;
-
 enum CommandResult {
     CmdRes_Ok = 0,
     CmdRes_PosErr,

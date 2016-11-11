@@ -1,18 +1,13 @@
 #pragma once
 #include "ProcessController.h"
 #include "EnvironManager.h"
+#include "Message.h"
 #include "Logger.h"
 
 extern ProcessController procCtrl;
+extern MessageCenter msgCenter;
 
 #define BH_IF_IS(rc,param) ((rc&param))
-
-namespace xnsh {
-	class BuiltinHelper;
-};
-
-using xnsh::BuiltinHelper;
-
 
 class BuiltinHelper {
 public:

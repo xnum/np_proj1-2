@@ -9,6 +9,26 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
 
 	int counter = 0;
     int prev_pipe = -1;
+
+    int fifo_read_fd = -1;
+    if( npc.fifo_read != -1 ) {
+        int rc = msgCenter.GetReadEnd(npc.fifo_read);
+        fifo_read_fd = rc;
+        if(rc < 0) {
+            return 1;
+        }
+    }
+
+    int fifo_write_fd = -1;
+    if( npc.fifo_write != -1 ) {
+        int fd = msgCenter.OpenWriteEnd(npc.fifo_write);
+        if(fd != -1)
+            fifo_write_fd = fd;
+        else
+            return 1;
+    }
+
+
 	for( size_t i = 0 ; i < executors.size() ; ++i ) {
 		Executor &exe = executors[i];
 		char* const* argv = exe.cmdHnd.toArgv();
@@ -29,6 +49,10 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
 		}
 
 		if( rc > 0 ) { // parent
+            if(fifo_read_fd!=-1) {
+                close(fifo_read_fd);
+                fifo_read_fd=-1;
+            }
             if(prev_pipe!=-1) {
                 close(prev_pipe);
             }
@@ -70,7 +94,6 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
         }
         if( i+1 == executors.size() && npc.lastStderr != UNINIT ) {
             dup2(npc.lastStderr,fileno(stderr));
-            //dup2(npc.lastStderr,fileno(stdout));
         }
         if( i+1 == executors.size() && npc.lastStdout != UNINIT ) {
             dup2(npc.lastStdout,fileno(stdout));
@@ -87,11 +110,29 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
         if( prev_pipe != -1 ) {
             dup2(prev_pipe,0);
         }
+
+        /* named pipe */
+        if( i == 0 && fifo_read_fd != -1 ) {
+            dup2(fifo_read_fd, fileno(stdin));
+        }
+        if( i+1 == executors.size() && fifo_write_fd != -1 ) {
+            dup2(fifo_write_fd, fileno(stdout));
+        }
+        else
+        {
+            if(fifo_write_fd!=-1)
+                close(fifo_write_fd);
+        }
+
+
         if( !godmode )
             return execve(argv[0],argv,envp);
         else
             return execvp(argv[0],argv);
 	}
+
+    if(fifo_write_fd!=-1)
+        close(fifo_write_fd);
 
 	return 0;
 }

@@ -10,12 +10,6 @@
 
 using namespace std;
 
-namespace xnsh {
-    class InputHandler;
-};
-
-using xnsh::InputHandler;
-
 class InputHandler {
     public:
         string Getline();

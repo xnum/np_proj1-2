@@ -3,14 +3,11 @@
 #include <sys/resource.h>
 
 #include "Logger.h"
+#include "Message.h"
 #include "NumberedPipe.h"
 #include "Executor.h"
 
-namespace xnsh {
-	class ProcessGrouper;
-};
-
-using xnsh::ProcessGrouper;
+extern MessageCenter msgCenter;
 
 enum StatusResult {
 	ProcAllDone,

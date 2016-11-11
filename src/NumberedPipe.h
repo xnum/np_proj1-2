@@ -33,6 +33,9 @@ class NumberedPipeConfig {
         int firstStdin;
         int lastStdout;
         int lastStderr;
+
+        int fifo_read;
+        int fifo_write;
 };
 
 class NumberedPipeManager {
@@ -42,7 +45,11 @@ class NumberedPipeManager {
         void Free();
         NumberedPipeConfig TakeConfig();
         void Count();
+
+        int fifo_read;
+        int fifo_write;
     private:
         vector<NumberedPipe> nps;
         void add(int,NPType);
+
 };
