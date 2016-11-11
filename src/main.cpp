@@ -12,206 +12,26 @@
 #include "BuiltinHelper.h"
 
 
-int waitProc(ProcessController& procCtrl, bool waitAll = true)
+int waitProc()
 {
-    int num = 0;
     while( 1 ) {
         int status = 0;
-        pid_t pid = waitpid(WAIT_ANY, &status, 0 | WUNTRACED);
+        pid_t pid = waitpid(WAIT_ANY, &status, 0);
         if( pid == -1 ) {
             // do until errno == ECHILD
             // means no more child 
             if(errno != ECHILD)
                 dprintf(ERROR,"waitpid %s\n",strerror(errno));
-            break;
+            return 0;
         }
-        else {
-            num++;
-        }
-
-        if( WIFEXITED(status) ) {
-            int rc = procCtrl.FreeProcess(pid);
-            if( rc == ProcAllDone ) {
-                procCtrl.TakeTerminalControl(Shell);
-                return num;
-            }
-        }
-        else if( WIFSTOPPED(status) ) {
-            procCtrl.TakeTerminalControl(Shell);
-            return num;
-        }
-
-        if(!waitAll && num != 0)
-            return num;
-    }
-
-    return num;
-}
-
-
-void serveForever(int sockfd)
-{
-    int rc = 0;
-
-    while(1) {
-WAIT_CONN:
-        dprintf(DEBUG, "start waiting connection\n");
-        struct sockaddr_in cAddr;
-        socklen_t len = sizeof(cAddr);
-        bzero((char*)&cAddr, sizeof(cAddr));
-
-        int connfd;
-        if(0 > (connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len))) {
-            dprintf(ERROR, "accept() %s\n", strerror(errno));
-        }
-
-        dprintf(DEBUG, "connection established\n");
-
-#ifdef USE_PT
-        int fdm = posix_openpt(O_RDWR);
-        if(fdm < 0) {
-            dprintf(ERROR, "posix_openpt() %s\n", strerror(errno));
-            exit(1);
-        }
-
-        if(0 != grantpt(fdm)) {
-            dprintf(ERROR, "grantpt() %s\n", strerror(errno));
-            exit(1);
-        }
-
-        if(0 != unlockpt(fdm)) {
-            dprintf(ERROR, "unlockpt() %s\n", strerror(errno));
-            exit(1);
-        }
-
-        int fds = open(ptsname(fdm), O_RDWR);
-        if(fds == -1)
-            dprintf(ERROR, "open(fds) %s\n", strerror(errno));
-
-        int cpid = 0;
-        if(cpid = fork()) { //parent
-
-            close(fds);
-
-            dprintf(DEBUG, "start serving connection\n");
-            while(1) {
-                char buff[256] = {};
-
-                struct pollfd fds[2];
-                fds[0].fd = fdm;
-                fds[1].fd = connfd;
-                fds[0].events = POLLIN;
-                fds[1].events = POLLIN;
-
-                rc = poll(fds, 2, -1);
-
-                if(rc == -1) {
-                    dprintf(ERROR, "poll() %s\n",strerror(errno));
-                    exit(1);
-                }
-                else if(rc > 0) {
-                    if(fds[0].revents & POLLIN) {
-                        rc = read(fds[0].fd, buff, sizeof(buff));
-                        if(rc > 0)
-                            write(fds[1].fd, buff, rc);
-                        else if(rc < 0) {
-                            dprintf(ERROR,"read() fdm %s\n",strerror(errno));
-                            exit(1);
-                        }
-                    }
-
-                    if(fds[1].revents & POLLIN) {
-                        rc = read(fds[1].fd, buff, sizeof(buff));
-                        if(rc > 0)
-                            write(fds[0].fd, buff, rc);
-                        else if(rc < 0) {
-                            dprintf(ERROR,"read() connfd Error:%s\n",strerror(errno));
-                            exit(1);
-                        }
-                    }
-
-                    /* connfd or fdm exited */
-                    for(int i = 0 ; i < 2 ; ++i) {
-                        if(fds[i].revents & POLLHUP || fds[i].revents & POLLERR) {
-                            dprintf(WARN,"disconnect\n");
-                            close(fds[0].fd);
-                            close(fds[1].fd);
-
-                            dprintf(INFO,"wait child:%d\n",cpid);
-                            int status = 0;
-                            pid_t pid = waitpid(cpid, &status, 0);
-
-                            goto WAIT_CONN;
-                        }
-                    }
-                }
-            }
-        }
-        else { // child
-            struct termios slave_orig_term_settings; // Saved terminal settings
-            struct termios new_term_settings; // Current terminal settings
-
-            // CHILD
-
-            // Close the master side of the PTY
-            close(fdm);
-            close(sockfd);
-
-            // Save the defaults parameters of the slave side of the PTY
-            rc = tcgetattr(fds, &slave_orig_term_settings);
-
-            // Set RAW mode on slave side of PTY
-            new_term_settings = slave_orig_term_settings;
-            cfmakeraw (&new_term_settings);
-            tcsetattr (fds, TCSANOW, &new_term_settings);
-
-            // The slave side of the PTY becomes the standard input and outputs of the child process
-            close(0); // Close standard input (current terminal)
-            close(1); // Close standard output (current terminal)
-            close(2); // Close standard error (current terminal)
-
-            dup(fds); // PTY becomes standard input (0)
-            dup(fds); // PTY becomes standard output (1)
-            dup(fds); // PTY becomes standard error (2)
-
-            // Now the original file descriptor is useless
-            close(fds);
-
-            // Make the current process a new session leader
-            setsid();
-
-            // As the child is a session leader, set the controlling terminal to be the slave side of the PTY
-            // (Mandatory for programs like the shell to make them manage correctly their outputs)
-            ioctl(0, TIOCSCTTY, 1);
-            return;
-        }
-#else
-
-        int cpid = 0;
-        if(cpid = fork()) {
-            close(connfd);
-            int status = 0;
-            pid_t pid = waitpid(cpid, &status, 0);
-            goto WAIT_CONN;
-        }
-        else {
-            dup2(connfd, 0);
-            dup2(connfd, 1);
-            dup2(connfd, 2);
-            return;
-        }
-#endif
     }
 }
 
 int serve(ProcessController& procCtrl, string line)
 {
-
     procCtrl.npManager.Free();
     int fg=0;
     if( line == "" ) {
-        procCtrl.TakeTerminalControl(Shell);
-        procCtrl.RefreshJobStatus();
         return 0;
     }
     else if( BuiltinHelper::IsSupportCmd(line) ) {
@@ -236,14 +56,12 @@ int serve(ProcessController& procCtrl, string line)
         for( auto& cmd : cmds ) {
             cmd.filename = cmd.name;
             string res = procCtrl.ToPathname(cmd.name);
-            if(!godmode) {
-                if(res == "") {
-                    fprintf(stderr,"Unknown command: [%s].\n",cmd.name.c_str());
-                    cmd404 = true;
-                    break;
-                }
-                cmd.name = res;
+            if(res == "") {
+                fprintf(stderr,"Unknown command: [%s].\n",cmd.name.c_str());
+                cmd404 = true;
+                break;
             }
+            cmd.name = res;
             exes.emplace_back(Executor(cmd));
         }
 
@@ -253,15 +71,16 @@ int serve(ProcessController& procCtrl, string line)
         }
 
         procCtrl.AddProcGroups(exes, line);
-        int rc = procCtrl.StartProc(fg==0 ? true : false);
+        int rc = procCtrl.StartProc();
         if( rc == Failure ) {
             return 0;
         }
     }
 
     // if StartProc got Success
-    if(fg == 0)waitProc(procCtrl);
+    if(fg == 0)waitProc();
 
+    return 0;
 }
 
 int main()

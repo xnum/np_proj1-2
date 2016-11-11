@@ -5,12 +5,6 @@
 
 #define BH_IF_IS(rc,param) ((rc&param))
 
-namespace xnsh {
-	class BuiltinHelper;
-};
-
-using xnsh::BuiltinHelper;
-
 
 class BuiltinHelper {
 public:
@@ -21,8 +15,6 @@ private:
 
 	static void GoExit();
 	static void EnvHelper(ProcessController&, const string&);
-	static int BringToFront(ProcessController&, const string&);
-    static int BringToBack(ProcessController&, const string&);
 };
 
 

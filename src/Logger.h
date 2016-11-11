@@ -16,7 +16,6 @@
 #ifndef AUTHER_x000032001
 
     extern int xxxLogLevel __attribute__((unused));
-    extern bool godmode;
 
 #endif
 

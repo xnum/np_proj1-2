@@ -5,12 +5,8 @@ bool BuiltinHelper::IsSupportCmd(string line)
 	const string cmd[] = {
 		"quit",
 		"exit",
-		"lsjob",
 		"setenv",
-		"printenv",
-		"fg",
-        "bg",
-        "xnum"
+		"printenv"
 	};
 
 	for( const string& s : cmd ) {
@@ -30,28 +26,6 @@ int BuiltinHelper::RunBuiltinCmd(ProcessController& procCtrl, string line)
 		EnvHelper(procCtrl, line);
 		return Success;
 	}
-
-	if( isStartWith(line, "lsjob") ) {
-		procCtrl.printJobs();
-		return Success;
-	}
-
-	if( isStartWith(line, "fg") ) {
-		if( Failure == BringToFront(procCtrl, line) )
-			return Failure;
-		return Wait;
-	}
-
-	if( isStartWith(line, "bg") ) {
-		if( Failure == BringToBack(procCtrl, line) )
-			return Failure;
-		return Success;
-	}
-
-    if( isStartWith(line, "xnum") ) {
-        godmode = true;
-        return Success;
-    }
 
 	dprintf(ERROR,"no matching builtin command\n");
 	exit(3);
@@ -101,32 +75,4 @@ void BuiltinHelper::EnvHelper(ProcessController& procCtrl, const string& line)
     }
 }
 
-int BuiltinHelper::BringToFront(ProcessController& procCtrl, const string& line)
-{
-	int fg = 0;
-	auto cmds = Parser::Parse(line,fg);
-	int index = -1;
-	if( cmds[0].args.size() == 1 ) {
-		stringstream ss(cmds[0].args[0]);
-		ss >> index;
-	}	
-	if( Failure == procCtrl.BringToFront(index) ) {
-		return Failure;
-	}
-	return Success;
-}
 
-int BuiltinHelper::BringToBack(ProcessController& procCtrl, const string& line)
-{
-	int fg = 0;
-	auto cmds = Parser::Parse(line,fg);
-	int index = -1;
-	if( cmds[0].args.size() == 1 ) {
-		stringstream ss(cmds[0].args[0]);
-		ss >> index;
-	}	
-	if( Failure == procCtrl.BringToBack(index) ) {
-		return Failure;
-	}
-	return Success;
-}

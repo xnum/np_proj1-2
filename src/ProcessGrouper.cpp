@@ -37,9 +37,6 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
                 prev_pipe = curr_pfd[0];
                 close(curr_pfd[1]);
             }
-			if( i == 0 )
-				pgid = exe.pid;
-			setpgid(executors[i].pid,pgid);
 
 			counter++;
 			if(counter >= proc_limit) {
@@ -87,54 +84,10 @@ int ProcessGrouper::Start(NumberedPipeConfig npc, char** envp)
         if( prev_pipe != -1 ) {
             dup2(prev_pipe,0);
         }
-        if( !godmode )
-            return execve(argv[0],argv,envp);
-        else
-            return execvp(argv[0],argv);
+
+        return execve(argv[0],argv,envp);
 	}
 
 	return 0;
 }
 
-int ProcessGrouper::NotifyTerminated(pid_t pid) {
-	bool allDone = true;
-	bool notMine = true;
-	for( size_t i = 0 ; i < executors.size() ; ++i ) {
-		if( executors[i].pid == pid ) {
-			notMine = false;
-			executors[i].done = true;
-		}
-		if( executors[i].done == false ) {
-			allDone = false;
-		}
-	}
-
-	if( notMine == true )
-		return ProcNotMine;
-
-	if( allDone == true )
-		return ProcAllDone;
-
-	return ProcNotAllDone;
-
-}
-
-int ProcessGrouper::PassSignal(int sig) {
-	if(executors.size() == 0) {
-		printf("Error:Process group doesn't contain any process\n");
-		exit(1);
-	}
-
-	// negtive for process group
-	kill(-(executors[0].pid),sig);
-	return 0;
-}
-
-pid_t ProcessGrouper::GetPgid() {
-	if(executors.size() == 0) {
-		printf("Error:Process group doesn't contain any process\n");
-		exit(1);
-	}
-
-	return pgid;
-}
