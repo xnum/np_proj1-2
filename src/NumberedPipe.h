@@ -38,11 +38,13 @@ class NumberedPipeConfig {
 class NumberedPipeManager {
     public:
         NumberedPipeManager() {} 
-        int CutNumberedPipeToken(string& line);
+        int CutToken(string& line, int& from_other, int& to_other);
         void Free();
         NumberedPipeConfig TakeConfig();
         void Count();
+        void AddNamedPipe(int from, int to);
     private:
         vector<NumberedPipe> nps;
         void add(int,NPType);
+        int from, to;
 };

@@ -13,7 +13,7 @@ TCPServer::TCPServer()
 int TCPServer::Init(int port)
 {
     if(0 > (sockfd = socket(AF_INET, SOCK_STREAM, 0))) {
-        dprintf(ERROR, "socket() %s\n", strerror(errno));
+        slogf(ERROR, "socket() %s\n", strerror(errno));
     }
 
     struct sockaddr_in sAddr;
@@ -26,25 +26,25 @@ int TCPServer::Init(int port)
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sAddr, sizeof(sAddr));
 
     if(0 > bind(sockfd, (struct sockaddr*)&sAddr, sizeof(sAddr))) {
-        dprintf(ERROR, "bind() %s\n", strerror(errno));
+        slogf(ERROR, "bind() %s\n", strerror(errno));
     }
 
     if(0 > listen(sockfd, 5)) {
-        dprintf(ERROR, "listen() %s\n", strerror(errno));
+        slogf(ERROR, "listen() %s\n", strerror(errno));
     }
 
     make_socket_non_blocking(sockfd);
 
-    dprintf(DEBUG, "success: return sockfd %d\n", sockfd);
+    slogf(DEBUG, "success: return sockfd %d\n", sockfd);
 
     epoll_fd = epoll_create(50);
     if(epoll_fd < 0)
-        dprintf(ERROR,"epoll_create %s\n",strerror(errno));
+        slogf(ERROR,"epoll_create %s\n",strerror(errno));
 
     event.data.fd = sockfd;
     event.events = EPOLLIN | EPOLLET;
     if(0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockfd, &event))
-        dprintf(ERROR,"epoll_ctl %s\n",strerror(errno));
+        slogf(ERROR,"epoll_ctl %s\n",strerror(errno));
     events = (epoll_event*)calloc(50, sizeof(event));
 
     return T_Success;
@@ -77,7 +77,7 @@ int TCPServer::make_socket_non_blocking (int sfd)
     flags = fcntl (sfd, F_GETFL, 0);
     if (flags == -1)
     {
-        dprintf(ERROR,"fcntl");
+        slogf(ERROR,"fcntl");
         return T_Failure;
     }
 
@@ -85,7 +85,7 @@ int TCPServer::make_socket_non_blocking (int sfd)
     s = fcntl (sfd, F_SETFL, flags);
     if (s == -1)
     {
-        dprintf(ERROR,"fcntl");
+        slogf(ERROR,"fcntl");
         return T_Failure;
     }
 
@@ -118,13 +118,13 @@ int TCPServer::recv_data_from_socket()
                 {
                     if(errno == EAGAIN || errno == EWOULDBLOCK)
                         break;
-                    dprintf(ERROR, "accept() %s\n", strerror(errno));
+                    slogf(ERROR, "accept() %s\n", strerror(errno));
                 }
-                make_socket_non_blocking(connfd);
+                //make_socket_non_blocking(connfd);
                 event.data.fd = connfd;
-                event.events = EPOLLIN | EPOLLET;
+                event.events = EPOLLIN; // | EPOLLET;
                 if(0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &event))
-                    dprintf(ERROR, "epoll_ctl");
+                    slogf(ERROR, "epoll_ctl");
 
                 const char msg[] =
                     "****************************************\n"
@@ -139,11 +139,11 @@ int TCPServer::recv_data_from_socket()
             while(1) {
                 int rc = 0;
                 char buff[512] = {};
-                rc = read(events[i].data.fd, buff, 512);
+                rc = recv(events[i].data.fd, buff, 512, MSG_DONTWAIT);
                 if(rc < 0) {
                     if(errno == EAGAIN || errno == EWOULDBLOCK)
                         break;
-                    dprintf(ERROR, "read() %s\n", strerror(errno));
+                    slogf(ERROR, "read() %s\n", strerror(errno));
                 }
                 if(rc > 0) {
                     clients[events[i].data.fd].buffer.append(buff, rc);

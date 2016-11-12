@@ -62,7 +62,7 @@ ostream &operator<<(ostream &os, const Command &cmd)
     return os << out;
 }
 
-vector<Command> Parser::Parse(string line,int &isfg)
+vector<Command> Parser::Parse(string line)
 {
     vector<Command> ret;
 
@@ -81,18 +81,12 @@ vector<Command> Parser::Parse(string line,int &isfg)
 	if( last.args.size() == 0 )
 		return ret;
 
-	if( *(last.args.rbegin()) == "&" ) {
-		isfg = 1;
-		(last.args).pop_back();
-	}
-
     return ret;
 }
 
 bool Parser::IsExpandable(const string& line)
 {
-    int notused = 0;
-    auto res = Parse(line, notused);
+    auto res = Parse(line);
     for( const auto& cmd : res ) {
         for( const auto& arg : cmd.args ) {
             if( hasMetaChar(arg) )
@@ -103,9 +97,9 @@ bool Parser::IsExpandable(const string& line)
     return false;
 }
 
-vector<Command> Parser::ParseGlob(string line, int &isfg)
+vector<Command> Parser::ParseGlob(string line)
 {
-    vector<Command> rawCmd = Parse(line,isfg);
+    vector<Command> rawCmd = Parse(line);
 
     for( size_t i = 0 ; i < rawCmd.size() ; ++i ) {
         bool first = true;

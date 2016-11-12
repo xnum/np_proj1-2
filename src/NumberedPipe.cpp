@@ -1,16 +1,18 @@
 #include "NumberedPipe.h"
 
-int NumberedPipeManager::CutNumberedPipeToken(string& line)
+int NumberedPipeManager::CutToken(string& line, int& from_other, int& to_other)
 {
     string newline;
 
+    from = from_other = UNINIT; 
+    to = to_other = UNINIT;
     stringstream ss(line);
     string token;
     while(ss >> token) {
         bool takeIt = false;
         if(token.size() > 1) {
             if(token[0] == '|') {
-                int n = -1;
+                int n = UNINIT;
                 if(1 == sscanf(token.c_str(), "|%9d", &n)) {
                     add(n,OUT);
                     takeIt = true;
@@ -18,9 +20,25 @@ int NumberedPipeManager::CutNumberedPipeToken(string& line)
             }
 
             if(token[0] == '!') {
-                int n = -1;
+                int n = UNINIT;
                 if(1 == sscanf(token.c_str(), "!%9d", &n)) {
                     add(n,ERR);
+                    takeIt = true;
+                }
+            }
+
+            if(token[0] == '>') {
+                int n = UNINIT;
+                if(1 == sscanf(token.c_str(), ">%9d", &n)) {
+                    to_other = n;
+                    takeIt = true;
+                }
+            }
+
+            if(token[0] == '<') {
+                int n = UNINIT;
+                if(1 == sscanf(token.c_str(), "<%9d", &n)) {
+                    from_other = n;
                     takeIt = true;
                 }
             }
@@ -69,6 +87,13 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
         }
     }
 
+    /* from,to are init when CutToken() and be set when AddNamedPipe() */
+    if(from != UNINIT)
+        npc.lastStderr = npc.lastStdout = to;
+
+    if(to != UNINIT)
+        npc.firstStdin = from;
+
     return npc;
 }
 
@@ -110,4 +135,10 @@ void NumberedPipeManager::add(int count,NPType type)
 
     // first appear
     nps.emplace_back(NumberedPipe(count,type,true));
+}
+
+void NumberedPipeManager::AddNamedPipe(int from, int to)
+{
+    this->from = from;
+    this->to = to;
 }

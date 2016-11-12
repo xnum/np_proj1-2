@@ -45,9 +45,9 @@ ostream &operator<<(ostream &os, const Command &cmd);
 
 class Parser {
     public:
-        static vector<Command> Parse(string line,int &isfg);
+        static vector<Command> Parse(string line);
         static bool IsExpandable(const string& line);
-        static vector<Command> ParseGlob(string line,int &isfg);
+        static vector<Command> ParseGlob(string line);
 
     private:
         static vector<string> split(const string &source, const string &delim);

@@ -10,7 +10,9 @@
 #include "InputHandler.h"
 #include "ProcessController.h"
 #include "BuiltinHelper.h"
+#include "NamedPipe.h"
 
+NamedPipeManager fifoMan;
 
 int waitProc()
 {
@@ -21,7 +23,7 @@ int waitProc()
             // do until errno == ECHILD
             // means no more child 
             if(errno != ECHILD)
-                dprintf(ERROR,"waitpid %s\n",strerror(errno));
+                slogf(ERROR,"waitpid %s\n",strerror(errno));
             return 0;
         }
     }
@@ -29,100 +31,115 @@ int waitProc()
 
 int serve(ProcessController& procCtrl, string line)
 {
+    /* remove used number pipe */
     procCtrl.npManager.Free();
-    int fg=0;
     if( line == "" ) {
         return 0;
     }
-    else if( BuiltinHelper::IsSupportCmd(line) ) {
+
+    if( BuiltinHelper::IsSupportCmd(line) ) {
         procCtrl.npManager.Count();
+        /* Exit may return here */
         return BuiltinHelper::RunBuiltinCmd(procCtrl, line);
     }
+
+    string originLine = line;
+    int from, to;
+    procCtrl.npManager.CutToken(line, from, to);
+    vector<Command> cmds;
+    if( !Parser::IsExpandable(line) ) {
+        cmds = Parser::Parse(line);
+    }
     else {
-        procCtrl.npManager.CutNumberedPipeToken(line);
-        vector<Command> cmds;
-        if( !Parser::IsExpandable(line) ) {
-            cmds = Parser::Parse(line,fg);
-        }
-        else {
-            cmds = Parser::ParseGlob(line,fg);
-        }
-
-        if(cmds.size() == 0)
-            return 0;
-
-        bool cmd404 = false;
-        vector<Executor> exes;
-        for( auto& cmd : cmds ) {
-            cmd.filename = cmd.name;
-            string res = procCtrl.ToPathname(cmd.name);
-            if(res == "") {
-                fprintf(stderr,"Unknown command: [%s].\n",cmd.name.c_str());
-                cmd404 = true;
-                break;
-            }
-            cmd.name = res;
-            exes.emplace_back(Executor(cmd));
-        }
-
-        if(cmd404) {
-            procCtrl.npManager.Count();
-            return 0;
-        }
-
-        procCtrl.AddProcGroups(exes, line);
-        int rc = procCtrl.StartProc();
-        if( rc == Failure ) {
-            return 0;
-        }
+        cmds = Parser::ParseGlob(line);
     }
 
-    // if StartProc got Success
-    if(fg == 0)waitProc();
+    if(cmds.size() == 0)
+        return 0;
+
+    bool cmd404 = false;
+    vector<Executor> exes;
+    for( auto& cmd : cmds ) {
+        cmd.filename = cmd.name;
+        string res = procCtrl.ToPathname(cmd.name);
+        if(res == "") {
+            dprintf(procCtrl.connfd,"Unknown command: [%s].\n",cmd.name.c_str());
+            cmd404 = true;
+            break;
+        }
+        cmd.name = res;
+        exes.emplace_back(Executor(cmd));
+    }
+
+    if(cmd404) {
+        procCtrl.npManager.Count();
+        return 0;
+    }
+
+    /* we want send something to somebody*/
+    int to_pipe_fd = UNINIT, from_pipe_fd = UNINIT;
+    if(to != UNINIT) {
+        if(0 > fifoMan.BuildPipe(procCtrl.connfd, to)) {
+            dprintf(procCtrl.connfd,"Build Pipe Failed (Exists?) .\n");
+            return 0;
+        }
+
+        int fd = 0;
+        if(0 > (fd = fifoMan.GetWriteFD(procCtrl.connfd, to))) {
+            dprintf(procCtrl.connfd,"Get Write End Failed (WTF?) .\n");
+            return 0;
+        }
+
+        to_pipe_fd = fd;
+    }
+
+    /* since we are the received side, pipe should be build and connected */
+    /* only need to get read fd                             */
+    if(from != UNINIT) {
+        int fd = 0;
+        if(0 > (fd = fifoMan.GetReadFD(procCtrl.connfd, to))) {
+            dprintf(procCtrl.connfd,"Get Read End Failed (Not Exists?) .\n");
+            return 0;
+        }
+
+        from_pipe_fd = fd;
+    }
+
+    procCtrl.npManager.AddNamedPipe(from_pipe_fd, to_pipe_fd);
+
+    procCtrl.AddProcGroups(exes, originLine);
+    int rc = procCtrl.StartProc();
+
+    slogf(INFO, "rc = %d\n", rc);
+    if(rc == Wait || rc == Ok)
+        waitProc();
+
+    /* task done, clean up fd we just got and used */
+    fifoMan.Free();
 
     return 0;
 }
 
 int main()
 {
-    //serveForever(sockfd);
-
-    signal(SIGTTOU, SIG_IGN);
-    signal(SIGTTIN, SIG_IGN);
-
     map<int,ProcessController> procCtrls;
 
     TCPServer tcpServ;
     tcpServ.Init(4577);
     string line;
     int connfd;
-    while(T_Success == tcpServ.GetRequest(line, connfd))
+    while(T_Success == tcpServ.GetRequest(line /* command */, connfd /* return corresponding socket id */))
     {
-        dprintf(DEBUG, "serving %d\n",connfd);
+        slogf(DEBUG, "serving %d\n",connfd);
 
-        int stdin_cp = dup(0);
-        int stdout_cp = dup(1);
-        int stderr_cp = dup(2);
-
-        dup2(connfd, 0);
-        dup2(connfd, 1);
-        dup2(connfd, 2);
-
+        procCtrls[connfd].connfd = connfd;
         if(Exit == serve(procCtrls[connfd], line)) {
             close(connfd);
         } else {
             write(connfd, "% ", 2);
         }
 
-        dup2(stdin_cp, 0);
-        dup2(stdout_cp, 1);
-        dup2(stderr_cp, 2);
-        
-        close(stdin_cp);
-        close(stdout_cp);
-        close(stderr_cp);
-
-        dprintf(DEBUG, "served %d\n",connfd);
+        slogf(DEBUG, "served %d\n",connfd);
     }
 
     puts("dead");

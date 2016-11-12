@@ -31,6 +31,7 @@ class Client {
 public:
     int connfd;
     string buffer;
+    int status;
 
     Client();
 };

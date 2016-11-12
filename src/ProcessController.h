@@ -3,14 +3,9 @@
 enum SimpleRetVal {
 	Failure,
 	Success,
-    Wait,
     Exit
 };
 
-enum PgidTarget {
-	Shell = -1,
-	ForeGround = 0
-};
 #include "Logger.h"
 #include "Executor.h"
 #include "ProcessGrouper.h"
@@ -27,7 +22,7 @@ class ProcessController {
         EnvironManager envManager;
         NumberedPipeManager npManager;
         string pwd;
+        int connfd;
 	private:
 		vector<ProcessGrouper> pgrps;
-		int fgIndex;
 };

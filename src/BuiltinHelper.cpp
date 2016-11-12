@@ -27,7 +27,7 @@ int BuiltinHelper::RunBuiltinCmd(ProcessController& procCtrl, string line)
 		return Success;
 	}
 
-	dprintf(ERROR,"no matching builtin command\n");
+	slogf(ERROR,"no matching builtin command\n");
 	exit(3);
 }
 
@@ -50,8 +50,7 @@ void BuiltinHelper::GoExit()
 
 void BuiltinHelper::EnvHelper(ProcessController& procCtrl, const string& line)
 {
-	int fg;
-	auto cmds = Parser::Parse(line,fg);
+	auto cmds = Parser::Parse(line);
 	const Command& cmd = cmds[0];
 
     // % setenv PATH bin

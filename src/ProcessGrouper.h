@@ -5,10 +5,11 @@
 #include "Logger.h"
 #include "NumberedPipe.h"
 #include "Executor.h"
-enum StatusResult {
-	ProcAllDone,
-	ProcNotAllDone,
-	ProcNotMine
+
+enum StartResult {
+    Ok = 0,
+    Wait = 1,
+    Fail = 2
 };
 
 class ProcessGrouper {
@@ -18,7 +19,7 @@ class ProcessGrouper {
 		ProcessGrouper(vector<Executor> exes) :
 			executors(exes) {}
 
-		int Start(NumberedPipeConfig,char**);
+		int Start(int connfd,NumberedPipeConfig,char**);
 
 	private:
 		vector<Executor> executors;

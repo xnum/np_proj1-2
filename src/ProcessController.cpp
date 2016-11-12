@@ -16,20 +16,18 @@ int ProcessController::AddProcGroups(const vector<Executor>& exes, const string&
 int ProcessController::StartProc()
 {
 	if( pgrps.size() == 0 ) {
-		dprintf(ERROR,"No processes could be start\n");
+		slogf(ERROR,"No processes could be start\n");
 		exit(1);
 	}
 
 	ProcessGrouper &pgrp = *pgrps.rbegin();
-    int rc = 0;
-	if( (rc = pgrp.Start(npManager.TakeConfig(), envManager.ToEnvp())) != 0 ) {
-        dprintf(ERROR,"execve() %s\n",strerror(errno));
-        return Failure;
+    int rc = pgrp.Start(connfd, npManager.TakeConfig(), envManager.ToEnvp());
+	if(rc != Ok) {
+        slogf(WARN,"Start failed %s\n",strerror(errno));
 	}
+    pgrps.pop_back();
 
-	fgIndex = pgrps.size() -1;
-
-	return Success;
+	return rc;
 }
 
 string ProcessController::ToPathname(string filename)

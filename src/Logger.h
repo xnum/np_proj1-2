@@ -25,7 +25,7 @@
     #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
     #define SET_LOG_LEVEL(x) (xxxDebugLevel=(x))
 
-    #define dprintf(inputLV,format,...)         \
+    #define slogf(inputLV,format,...)         \
             do { if((inputLV)>=xxxLogLevel) {     \
             fprintf(stderr,"[%5d][%.5s] %.6s:%3d %.12s() # " format,getpid(),#inputLV,__FILENAME__,__LINE__,__func__,##__VA_ARGS__);  \
             } \
