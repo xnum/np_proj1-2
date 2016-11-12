@@ -27,13 +27,19 @@ enum TCPServResult {
     T_Failure = -1
 };
 
-class Client {
+class ClientBuffer {
 public:
     int connfd;
     string buffer;
-    int status;
 
-    Client();
+    ClientBuffer();
+};
+
+class ClientInfo {
+public:
+    int connfd;
+    char name[256];
+    char ip[256];
 };
 
 class TCPServer {
@@ -41,12 +47,13 @@ public:
     TCPServer();
     int Init(int port);
     int GetRequest(string&, int&);
+    vector<ClientInfo> client_info;
 private:
     int sockfd;
     int epoll_fd;
     struct epoll_event event;
     struct epoll_event *events;
-    map<int, Client> clients;
+    map<int, ClientBuffer> client_buffers;
 
     int make_socket_non_blocking(int);
     int recv_data_from_socket();

@@ -1,6 +1,6 @@
 #include "TCPServer.h"
 
-Client::Client()
+ClientBuffer::ClientBuffer()
 {
     connfd = -1;
 }
@@ -54,7 +54,7 @@ int TCPServer::GetRequest(string& line, int& connfd)
 {
     while(1) {
         recv_data_from_socket();
-        for(auto& it : clients) {
+        for(auto& it : client_buffers) {
             auto& buffer = it.second.buffer;
             auto pos = buffer.find_first_of('\n');
             if(string::npos != pos) {
@@ -101,7 +101,7 @@ int TCPServer::recv_data_from_socket()
             (events[i].events & EPOLLHUP) || 
            !(events[i].events & EPOLLIN)  )
         {
-            clients.erase(events[i].data.fd);
+            client_buffers.erase(events[i].data.fd);
             close(events[i].data.fd);
             continue;
         }
@@ -146,7 +146,7 @@ int TCPServer::recv_data_from_socket()
                     slogf(ERROR, "read() %s\n", strerror(errno));
                 }
                 if(rc > 0) {
-                    clients[events[i].data.fd].buffer.append(buff, rc);
+                    client_buffers[events[i].data.fd].buffer.append(buff, rc);
                 }
                 else
                     break;
