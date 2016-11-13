@@ -19,44 +19,51 @@ enum CommandResult {
 };
 
 class Command {
-    public:
-        string name;
-        string filename;
-        vector<string> args; 
-        string redirectStdout;
-        string redirectStdin;
-        string originStr; // for debug
-        int isSyntaxError;
-        char **argv;
+public:
+    string name;
+    string filename;
+    vector<string> args;
+    string redirectStdout;
+    string redirectStdin;
+    string originStr; // for debug
+    int isSyntaxError;
+    char** argv;
 
-        Command() { isSyntaxError = CmdRes_Ok; argv = NULL; }
-        Command(const string& nam,
-                const vector<string>& arg,
-                const string& reOut,
-                const string& reIn,
-                int synErr)
-            : name(nam), args(arg), redirectStdout(reOut), redirectStdin(reIn), isSyntaxError(synErr) { argv = NULL; }
-        ~Command();
-        bool operator== (const Command& rhs) const;        
-        char* const* toArgv();
+    Command()
+    {
+        isSyntaxError = CmdRes_Ok;
+        argv = NULL;
+    }
+    Command(const string& nam, const vector<string>& arg, const string& reOut,
+            const string& reIn, int synErr)
+        : name(nam)
+        , args(arg)
+        , redirectStdout(reOut)
+        , redirectStdin(reIn)
+        , isSyntaxError(synErr)
+    {
+        argv = NULL;
+    }
+    ~Command();
+    bool operator==(const Command& rhs) const;
+    char* const* toArgv();
 };
 
-ostream &operator<<(ostream &os, const Command &cmd);
+ostream& operator<<(ostream& os, const Command& cmd);
 
 class Parser {
-    public:
-        static vector<Command> Parse(string line);
-        static bool IsExpandable(const string& line);
-        static vector<Command> ParseGlob(string line);
+public:
+    static vector<Command> Parse(string line);
+    static bool IsExpandable(const string& line);
+    static vector<Command> ParseGlob(string line);
 
-    private:
-        static vector<string> split(const string &source, const string &delim);
-        static string trim(const string& str);
-        static bool hasMetaChar(const string&);
-        static bool hasWord(const string&,const string&);
+private:
+    static vector<string> split(const string& source, const string& delim);
+    static string trim(const string& str);
+    static bool hasMetaChar(const string&);
+    static bool hasWord(const string&, const string&);
 
-        static Command takeCommand(string);
+    static Command takeCommand(string);
 
-        static const string PIPE_DELIM;
+    static const string PIPE_DELIM;
 };
-

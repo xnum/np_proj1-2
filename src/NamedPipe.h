@@ -27,7 +27,7 @@
  * @Free()
  *      ## cleanup which state == READ ,set to EMPTY
  *
- */ 
+ */
 
 #include <cstdio>
 #include <cstdlib>
@@ -42,7 +42,7 @@
 
 #include "Logger.h"
 
-#define SINGLE_MODE 
+#define SINGLE_MODE
 
 #define USER_LIM 30
 
@@ -54,19 +54,20 @@
 using namespace std;
 
 class NamedPipe {
-    public:
+public:
     int status;
     int fd[2];
     char path[256];
 };
 
 class NamedPipeManager {
-    public:
-        NamedPipeManager();
-        int BuildPipe(int from, int to);
-        int GetWriteFD(int from, int to);
-        int GetReadFD(int from, int to);
-        int Free();
-    private:
-        NamedPipe np[USER_LIM][USER_LIM];
+public:
+    NamedPipeManager();
+    int BuildPipe(int from, int to);
+    int GetWriteFD(int from, int to);
+    int GetReadFD(int from, int to);
+    int Free();
+
+private:
+    NamedPipe np[USER_LIM][USER_LIM];
 };

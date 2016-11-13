@@ -10,11 +10,10 @@
 #include "Parser.h"
 
 class Executor {
-    public:
-        bool done;
-        pid_t pid;
-        Command cmdHnd;
+public:
+    bool done;
+    pid_t pid;
+    Command cmdHnd;
 
-        Executor(const Command& cmd);
+    Executor(const Command& cmd);
 };
-

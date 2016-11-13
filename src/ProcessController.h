@@ -1,8 +1,8 @@
 #pragma once
 
 enum SimpleRetVal {
-	Failure,
-	Success,
+    Failure,
+    Success,
     Exit
 };
 
@@ -12,17 +12,18 @@ enum SimpleRetVal {
 #include "EnvironManager.h"
 
 class ProcessController {
-	public:
-        ProcessController();
-		int AddProcGroups(const vector<Executor>&, const string& cmd);
-		int StartProc();
-        string ToPathname(string filename);
-        void SetupPwd();
+public:
+    ProcessController();
+    int AddProcGroups(const vector<Executor>&, const string& cmd);
+    int StartProc();
+    string ToPathname(string filename);
+    void SetupPwd();
 
-        EnvironManager envManager;
-        NumberedPipeManager npManager;
-        string pwd;
-        int connfd;
-	private:
-		vector<ProcessGrouper> pgrps;
+    EnvironManager envManager;
+    NumberedPipeManager npManager;
+    string pwd;
+    int connfd;
+
+private:
+    vector<ProcessGrouper> pgrps;
 };

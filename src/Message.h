@@ -16,51 +16,51 @@ using namespace std;
 #define USER_ALL -1
 
 class MessagePack {
-    public:
-        struct ClientData {
-            int connfd; /* identify user by its connfd */
-            char name[128];
-            char ip[128];
-            atomic<bool> online;
-        } clients[USER_LIM]; /* id == index */
+public:
+    struct ClientData {
+        int connfd; /* identify user by its connfd */
+        char name[128];
+        char ip[128];
+        atomic<bool> online;
+    } clients[USER_LIM]; /* id == index */
 
-        struct MessageBox {
-            char buff[10][1025];
-            int ptr;
-        } msgbox[USER_LIM+1][USER_LIM];
+    struct MessageBox {
+        char buff[10][1025];
+        int ptr;
+    } msgbox[USER_LIM + 1][USER_LIM];
 
-        pthread_mutex_t mutex;
+    pthread_mutex_t mutex;
 };
 
 class MessageCenter {
-    public:
-        MessageCenter();
-        /* interactive with other class */
-        void UpdateFromTCPServer(const vector<ClientInfo>& client_info);
-        void UserComing(const char* ip);
-        void UserLeft(int connfd);
-        void CreatedPipe(int from_index, int to_index, const char* command);
-        void ReceivePipe(int from_index, int to_index, const char* command);
+public:
+    MessageCenter();
+    /* interactive with other class */
+    void UpdateFromTCPServer(const vector<ClientInfo>& client_info);
+    void UserComing(const char* ip);
+    void UserLeft(int connfd);
+    void CreatedPipe(int from_index, int to_index, const char* command);
+    void ReceivePipe(int from_index, int to_index, const char* command);
 
-        void PipeExist(int from_index, int to_index);
-        void PipeNotExist(int from_index, int to_index);
+    void PipeExist(int from_index, int to_index);
+    void PipeNotExist(int from_index, int to_index);
 
-        /* helper function */
-        int getIndexByConnfd(int connfd);
-        void AddMessageTo(int from_index, int to_index, const char* format, ...);
-        void PrintClientDataTable();
+    /* helper function */
+    int getIndexByConnfd(int connfd);
+    void AddMessageTo(int from_index, int to_index, const char* format, ...);
+    void PrintClientDataTable();
 
-        /* print message to clients , must only server call this */
-        void DealMessage();
+    /* print message to clients , must only server call this */
+    void DealMessage();
 
-        /* API direct called by interface 
-           anybody call these function need passed its connfd
-         */
-        void SetName(int connfd, const char* name);
-        void ShowUsers(int connfd);
-        void Tell(int connfd, int to_index, const char* msg);
-        void Yell(int connfd, const char* msg);
+    /* API direct called by interface
+     anybody call these function need passed its connfd
+   */
+    void SetName(int connfd, const char* name);
+    void ShowUsers(int connfd);
+    void Tell(int connfd, int to_index, const char* msg);
+    void Yell(int connfd, const char* msg);
 
-    private:
-        MessagePack data;
+private:
+    MessagePack data;
 };

@@ -1,9 +1,7 @@
 #include "Executor.h"
 
-
 Executor::Executor(const Command& cmd)
-  :  cmdHnd(cmd)
+    : cmdHnd(cmd)
 {
     done = false;
 }
-

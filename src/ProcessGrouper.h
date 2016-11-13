@@ -13,14 +13,16 @@ enum StartResult {
 };
 
 class ProcessGrouper {
-	public:
-		string originCmds;
+public:
+    string originCmds;
 
-		ProcessGrouper(vector<Executor> exes) :
-			executors(exes) {}
+    ProcessGrouper(vector<Executor> exes)
+        : executors(exes)
+    {
+    }
 
-		int Start(int connfd,NumberedPipeConfig,char**);
+    int Start(int connfd, NumberedPipeConfig, char**);
 
-	private:
-		vector<Executor> executors;
+private:
+    vector<Executor> executors;
 };

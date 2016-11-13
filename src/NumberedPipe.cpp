@@ -1,50 +1,51 @@
 #include "NumberedPipe.h"
 
-int NumberedPipeManager::CutToken(string& line, int& from_other, int& to_other)
+int NumberedPipeManager::CutToken(string& line, int& from_other,
+                                  int& to_other)
 {
     string newline;
 
-    from_fd = from_other = UNINIT; 
+    from_fd = from_other = UNINIT;
     to_fd = to_other = UNINIT;
     stringstream ss(line);
     string token;
-    while(ss >> token) {
+    while (ss >> token) {
         bool takeIt = false;
-        if(token.size() > 1) {
-            if(token[0] == '|') {
+        if (token.size() > 1) {
+            if (token[0] == '|') {
                 int n = UNINIT;
-                if(1 == sscanf(token.c_str(), "|%9d", &n)) {
-                    add(n,OUT);
+                if (1 == sscanf(token.c_str(), "|%9d", &n)) {
+                    add(n, OUT);
                     takeIt = true;
                 }
             }
 
-            if(token[0] == '!') {
+            if (token[0] == '!') {
                 int n = UNINIT;
-                if(1 == sscanf(token.c_str(), "!%9d", &n)) {
-                    add(n,ERR);
+                if (1 == sscanf(token.c_str(), "!%9d", &n)) {
+                    add(n, ERR);
                     takeIt = true;
                 }
             }
 
-            if(token[0] == '>') {
+            if (token[0] == '>') {
                 int n = UNINIT;
-                if(1 == sscanf(token.c_str(), ">%9d", &n)) {
+                if (1 == sscanf(token.c_str(), ">%9d", &n)) {
                     to_other = n;
                     takeIt = true;
                 }
             }
 
-            if(token[0] == '<') {
+            if (token[0] == '<') {
                 int n = UNINIT;
-                if(1 == sscanf(token.c_str(), "<%9d", &n)) {
+                if (1 == sscanf(token.c_str(), "<%9d", &n)) {
                     from_other = n;
                     takeIt = true;
                 }
             }
         }
 
-        if(!takeIt)
+        if (!takeIt)
             newline += " " + token + " ";
     }
 
@@ -60,38 +61,37 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
     npc.lastStdout = UNINIT;
     npc.lastStderr = UNINIT;
 
-    for(auto it = nps.begin() ; it != nps.end() ; ++it) {
-        if(it->redirCount-- == 0) {
-            //printf("Close Pipe [%d]\n",it->fd[1]);
+    for (auto it = nps.begin(); it != nps.end(); ++it) {
+        if (it->redirCount-- == 0) {
+            // printf("Close Pipe [%d]\n",it->fd[1]);
             close(it->fd[1]);
             it->fd[1] = -1;
             npc.firstStdin = it->fd[0];
         }
-        if(it->used) {
+        if (it->used) {
             it->used = false;
-            if(it->fd[0] == UNINIT && it->fd[1] == UNINIT) {
+            if (it->fd[0] == UNINIT && it->fd[1] == UNINIT) {
                 pipe(it->fd);
-                //printf("Create Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
-            }
-            else {
-                //printf("Use Exist Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
+                // printf("Create Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
+            } else {
+                // printf("Use Exist Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
             }
 
-            if(it->type==ERR) {
+            if (it->type == ERR) {
                 npc.lastStderr = it->fd[1];
                 npc.lastStdout = it->fd[1];
             }
-            if(it->type==OUT) {
+            if (it->type == OUT) {
                 npc.lastStdout = it->fd[1];
             }
         }
     }
 
     /* from,to are init when CutToken() and be set when AddNamedPipe() */
-    if(to_fd != UNINIT)
+    if (to_fd != UNINIT)
         npc.lastStderr = npc.lastStdout = to_fd;
 
-    if(from_fd != UNINIT)
+    if (from_fd != UNINIT)
         npc.firstStdin = from_fd;
 
     return npc;
@@ -99,34 +99,35 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
 
 void NumberedPipeManager::Count()
 {
-    for(auto it = nps.begin() ; it != nps.end() ; ++it) {
+    for (auto it = nps.begin(); it != nps.end(); ++it) {
         it->redirCount--;
     }
 }
-
 
 void NumberedPipeManager::Free()
 {
     bool done = true;
     do {
         done = true;
-        for(auto it = nps.begin() ; it != nps.end() ; ++it) {
-            if(it->redirCount<0) {
-                //printf("Close Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
-                if(it->fd[0]!=-1)close(it->fd[0]);
-                if(it->fd[1]!=-1)close(it->fd[1]);
+        for (auto it = nps.begin(); it != nps.end(); ++it) {
+            if (it->redirCount < 0) {
+                // printf("Close Pipe [%d,%d]\n",it->fd[0],it->fd[1]);
+                if (it->fd[0] != -1)
+                    close(it->fd[0]);
+                if (it->fd[1] != -1)
+                    close(it->fd[1]);
                 nps.erase(it);
                 done = false;
                 break;
             }
         }
-    } while(!done);
+    } while (!done);
 }
 
-void NumberedPipeManager::add(int count,NPType type)
+void NumberedPipeManager::add(int count, NPType type)
 {
-    for(auto it = nps.begin() ; it != nps.end() ; ++it) {
-        if(it->redirCount == count) {
+    for (auto it = nps.begin(); it != nps.end(); ++it) {
+        if (it->redirCount == count) {
             it->used = true;
             it->type = type;
             return;
@@ -134,12 +135,12 @@ void NumberedPipeManager::add(int count,NPType type)
     }
 
     // first appear
-    nps.emplace_back(NumberedPipe(count,type,true));
+    nps.emplace_back(NumberedPipe(count, type, true));
 }
 
 void NumberedPipeManager::AddNamedPipe(int from, int to)
 {
-    slogf(DEBUG, "assign named pipe fd %d %d\n",from,to);
+    slogf(DEBUG, "assign named pipe fd %d %d\n", from, to);
     this->from_fd = from;
     this->to_fd = to;
 }

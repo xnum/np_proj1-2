@@ -44,6 +44,9 @@ main: $(OBJS)
 $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(CC) $(CFLAGS) -o $@ -c $<
 	$(CC) -MM -MT $(OBJDIR)/$*.o $(CFLAGS) $(SRCDIR)/$*.cpp > $(DEPDIR)/$*.d
+
+format:
+	cd src && clang-format -style=WebKit -i *.h *.cpp
  
 clean:
 	rm -fr debug/*

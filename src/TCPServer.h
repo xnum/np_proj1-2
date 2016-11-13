@@ -12,7 +12,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <poll.h>
-#include <sys/types.h> 
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -50,11 +50,12 @@ public:
     int RemoveUser(int connfd);
 
     vector<ClientInfo> client_info;
+
 private:
     int sockfd;
     int epoll_fd;
     struct epoll_event event;
-    struct epoll_event *events;
+    struct epoll_event* events;
     map<int, ClientBuffer> client_buffers;
 
     int make_socket_non_blocking(int);
