@@ -6,7 +6,11 @@ bool BuiltinHelper::IsSupportCmd(string line)
 		"quit",
 		"exit",
 		"setenv",
-		"printenv"
+		"printenv",
+        "name",
+        "yell",
+        "tell",
+        "who"
 	};
 
 	for( const string& s : cmd ) {
@@ -26,6 +30,38 @@ int BuiltinHelper::RunBuiltinCmd(ProcessController& procCtrl, string line)
 		EnvHelper(procCtrl, line);
 		return Success;
 	}
+
+    if( isStartWith(line, "name") ) {
+        stringstream ss(line);
+        string unused, name;
+        ss >> unused >> name;
+        msgCenter.SetName(procCtrl.connfd, name.c_str());
+        return Success;
+    }
+
+    if( isStartWith(line, "tell") ) {
+        stringstream ss(line);
+        string unused, msg;
+        int to;
+        ss >> unused >> to;
+        getline(ss, msg);
+        msgCenter.Tell(procCtrl.connfd, to+1, msg.c_str());
+        return Success;
+    }
+
+    if( isStartWith(line, "yell") ) {
+        stringstream ss(line);
+        string unused, msg;
+        ss >> unused;
+        getline(ss, msg);
+        msgCenter.Yell(procCtrl.connfd, msg.c_str());
+        return Success;
+    }
+
+    if( isStartWith(line, "who") ) {
+        msgCenter.ShowUsers(procCtrl.connfd);
+        return Success;
+    }
 
 	slogf(ERROR,"no matching builtin command\n");
 	exit(3);

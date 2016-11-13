@@ -4,8 +4,8 @@ int NumberedPipeManager::CutToken(string& line, int& from_other, int& to_other)
 {
     string newline;
 
-    from = from_other = UNINIT; 
-    to = to_other = UNINIT;
+    from_fd = from_other = UNINIT; 
+    to_fd = to_other = UNINIT;
     stringstream ss(line);
     string token;
     while(ss >> token) {
@@ -88,11 +88,11 @@ NumberedPipeConfig NumberedPipeManager::TakeConfig()
     }
 
     /* from,to are init when CutToken() and be set when AddNamedPipe() */
-    if(from != UNINIT)
-        npc.lastStderr = npc.lastStdout = to;
+    if(to_fd != UNINIT)
+        npc.lastStderr = npc.lastStdout = to_fd;
 
-    if(to != UNINIT)
-        npc.firstStdin = from;
+    if(from_fd != UNINIT)
+        npc.firstStdin = from_fd;
 
     return npc;
 }
@@ -139,6 +139,7 @@ void NumberedPipeManager::add(int count,NPType type)
 
 void NumberedPipeManager::AddNamedPipe(int from, int to)
 {
-    this->from = from;
-    this->to = to;
+    slogf(DEBUG, "assign named pipe fd %d %d\n",from,to);
+    this->from_fd = from;
+    this->to_fd = to;
 }

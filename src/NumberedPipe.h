@@ -6,6 +6,8 @@
 #include <sstream>
 #include <unistd.h>
 
+#include "Logger.h"
+
 using namespace std;
 
 #define UNINIT -1
@@ -46,5 +48,5 @@ class NumberedPipeManager {
     private:
         vector<NumberedPipe> nps;
         void add(int,NPType);
-        int from, to;
+        int from_fd, to_fd;
 };

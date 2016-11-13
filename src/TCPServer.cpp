@@ -70,6 +70,22 @@ int TCPServer::GetRequest(string& line, int& connfd)
     }
 }
 
+int TCPServer::RemoveUser(int connfd)
+{
+    if(epoll_ctl(epoll_fd, EPOLL_CTL_DEL, connfd, NULL))
+        slogf(ERROR, "epoll_ctl DEL connfd %d %s\n",connfd,strerror(errno));
+
+    for(auto it = client_info.begin(); it != client_info.end(); ++it) {
+        if(it->connfd == connfd) {
+            slogf(INFO,"Found %d and Remove it!\n",connfd);
+            client_info.erase(it);
+            break;
+        }
+    }
+
+    return 0;
+}
+
 int TCPServer::make_socket_non_blocking (int sfd)
 {
     int flags, s;
@@ -102,6 +118,12 @@ int TCPServer::recv_data_from_socket()
            !(events[i].events & EPOLLIN)  )
         {
             client_buffers.erase(events[i].data.fd);
+            for(auto it = client_info.begin(); it != client_info.end(); ++it) {
+                if(it->connfd == events[i].data.fd) {
+                    client_info.erase(it);
+                    break;
+                }
+            }
             close(events[i].data.fd);
             continue;
         }
@@ -120,9 +142,8 @@ int TCPServer::recv_data_from_socket()
                         break;
                     slogf(ERROR, "accept() %s\n", strerror(errno));
                 }
-                //make_socket_non_blocking(connfd);
                 event.data.fd = connfd;
-                event.events = EPOLLIN; // | EPOLLET;
+                event.events = EPOLLIN;
                 if(0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &event))
                     slogf(ERROR, "epoll_ctl");
 
@@ -132,6 +153,14 @@ int TCPServer::recv_data_from_socket()
                     "****************************************\n"
                     "% ";
                 write(connfd, msg, sizeof(msg));
+
+                char *ip = inet_ntoa(cAddr.sin_addr);
+                client_info.emplace_back(ClientInfo());
+                ClientInfo &ci = *client_info.rbegin();
+                ci.connfd = connfd;
+                snprintf(ci.ip, 128, "%s/%d", ip, ntohs(cAddr.sin_port));
+
+                slogf(INFO, "New User Accepted %d\n",connfd);
             }
         } 
         else

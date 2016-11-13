@@ -15,6 +15,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/ioctl.h>
 #include <sys/epoll.h>
 
@@ -38,8 +39,7 @@ public:
 class ClientInfo {
 public:
     int connfd;
-    char name[256];
-    char ip[256];
+    char ip[128];
 };
 
 class TCPServer {
@@ -47,6 +47,8 @@ public:
     TCPServer();
     int Init(int port);
     int GetRequest(string&, int&);
+    int RemoveUser(int connfd);
+
     vector<ClientInfo> client_info;
 private:
     int sockfd;

@@ -2,9 +2,11 @@
 #include "ProcessController.h"
 #include "EnvironManager.h"
 #include "Logger.h"
+#include "Message.h"
 
 #define BH_IF_IS(rc,param) ((rc&param))
 
+extern MessageCenter msgCenter;
 
 class BuiltinHelper {
 public:
