@@ -8,6 +8,7 @@ ClientBuffer::ClientBuffer()
 TCPServer::TCPServer()
 {
     sockfd = -1;
+    type = SERVER;
 }
 
 int TCPServer::Init(int port)
@@ -53,6 +54,9 @@ int TCPServer::Init(int port)
 int TCPServer::GetRequest(string& line, int& connfd)
 {
     while (1) {
+#ifndef SINGLE_MODE
+        recycle_child();
+#endif
         for (auto& it : client_buffers) {
             auto& buffer = it.second.buffer;
             auto pos = buffer.find_first_of('\n');
@@ -76,9 +80,6 @@ int TCPServer::GetRequest(string& line, int& connfd)
 
 int TCPServer::RemoveUser(int connfd)
 {
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, connfd, NULL))
-        slogf(ERROR, "epoll_ctl DEL connfd %d %s\n", connfd, strerror(errno));
-
     for (auto it = client_info.begin(); it != client_info.end(); ++it) {
         if (it->connfd == connfd) {
             slogf(INFO, "Found %d and Remove it!\n", connfd);
@@ -122,6 +123,7 @@ int TCPServer::recv_data_from_socket()
                     break;
                 }
             }
+            slogf(WARN, "close(%d) \n",events[i].data.fd);
             close(events[i].data.fd);
             continue;
         }
@@ -151,15 +153,50 @@ int TCPServer::recv_data_from_socket()
                 client_info.emplace_back(ClientInfo());
                 ClientInfo& ci = *client_info.rbegin();
                 ci.connfd = connfd;
+                ci.pid = 0;
                 snprintf(ci.ip, 128, "%s/%d", ip, ntohs(cAddr.sin_port));
 
                 slogf(INFO, "New User Accepted %d\n", connfd);
 
-                /* add to listener */
+#ifdef SINGLE_MODE
+                /* In single_mode, just add connfd to epoll_fd */
                 event.data.fd = connfd;
                 event.events = EPOLLIN;
                 if (0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &event))
                     slogf(ERROR, "epoll_ctl");
+#else
+                pid_t child_pid = fork();
+                if (child_pid != 0) { // parent
+                    /* remember its pid and do nothing */
+                    ci.pid = child_pid;
+
+                } else { // child
+                    type = CLIENT;
+                    /* we don't need other clients connfd */
+                    for (size_t i = 0; i < client_info.size(); ++i) {
+                        if (connfd != client_info[i].connfd)
+                            close(client_info[i].connfd);
+                    }
+                    close(sockfd);
+
+                    /* cleanup epoll from parent to prevent use same structure */
+                    //close(epoll_fd);
+                    free(events);
+
+                    /* create a new one, which only listen current connfd */
+                    epoll_fd = epoll_create(5);
+                    if (epoll_fd < 0)
+                        slogf(ERROR, "epoll_create %s\n", strerror(errno));
+
+                    event.data.fd = connfd;
+                    event.events = EPOLLIN;
+                    if (0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &event))
+                        slogf(ERROR, "epoll_ctl %s\n", strerror(errno));
+                    events = (epoll_event*)calloc(5, sizeof(event));
+
+                    return 0;
+                }
+#endif
             }
         } else {
             while (1) {
@@ -179,4 +216,35 @@ int TCPServer::recv_data_from_socket()
         }
     }
     return rc;
+}
+
+int TCPServer::recycle_child()
+{
+    /* only SERVER contains efficient client_info list */
+    if(type != SERVER)
+        return 0;
+
+    bool done = true;
+    do {
+        done = true;
+        for(auto it = client_info.begin(); it != client_info.end(); ++it) {
+            if(it->pid == 0)
+                continue;
+            int status = 0;
+            int rc = waitpid(it->pid, &status, WNOHANG);
+            if(rc == -1) {
+                slogf(WARN, "waitpid %s\n",strerror(errno));
+            }
+            if(rc > 0) {
+                int connfd = it->connfd;
+                slogf(INFO, "child with connfd %d is done rc = %d\n",connfd,rc);
+                RemoveUser(connfd);
+                close(connfd);
+                done = false;
+                break;
+            }
+        }
+    } while(!done);
+
+    return 0;
 }

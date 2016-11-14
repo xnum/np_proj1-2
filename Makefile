@@ -10,8 +10,8 @@ ifndef BC
 endif
  
 CC = g++
-CFLAGS = -Wall -Wextra -std=c++11 -DSINGLE_MODE
-LDFLAGS = -lm 
+CFLAGS = -Wall -Wextra -std=c++11 # -DSINGLE_MODE
+LDFLAGS = -lm -lrt
  
 ifeq ($(BC),debug)
 CFLAGS += -g

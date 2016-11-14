@@ -145,16 +145,19 @@ int main()
     int connfd;
     while (T_Success == tcpServ.GetRequest(line /* command */,
                                            connfd /* return corresponding socket id */)) {
-        msgCenter.UpdateFromTCPServer(tcpServ.client_info);
 
-        if (connfd < 0) {
-            msgCenter.DealMessage();
-        } else {
+        if (connfd < 0) { /* both SERVER and CLIENT returns negtive number */
+            if (tcpServ.type == SERVER) {
+                msgCenter.UpdateFromTCPServer(tcpServ.client_info);
+                msgCenter.DealMessage();
+            } 
+        } else { /* good connfd */
             procCtrls[connfd].connfd = connfd;
             if (Exit == serve(procCtrls[connfd], line)) {
-                msgCenter.UserLeft(connfd);
                 tcpServ.RemoveUser(connfd);
-                close(connfd);
+                //close(connfd);
+                if(tcpServ.type == CLIENT)
+                    exit(0);
             } else {
                 write(connfd, "% ", 2);
             }

@@ -7,6 +7,9 @@
 #include <pthread.h>
 #include "Logger.h"
 #include "TCPServer.h"
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 using namespace std;
 
@@ -34,6 +37,9 @@ public:
 
 class MessageCenter {
 public:
+    int shm_fd;
+    void* mmap_ptr;
+
     MessageCenter();
     /* interactive with other class */
     void UpdateFromTCPServer(const vector<ClientInfo>& client_info);
@@ -62,5 +68,5 @@ public:
     void Yell(int connfd, const char* msg);
 
 private:
-    MessagePack data;
+    MessagePack *data;
 };
