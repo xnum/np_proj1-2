@@ -56,6 +56,7 @@ public:
 
     int type;
     vector<ClientInfo> client_info;
+
 private:
     int sockfd;
     int epoll_fd;

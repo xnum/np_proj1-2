@@ -15,6 +15,18 @@
 
 NamedPipeManager fifoMan;
 MessageCenter msgCenter;
+static int self_index = -1;
+
+void intHandler(int sig)
+{
+    if(sig == SIGINT) {
+        slogf(INFO, "Server exited gracefully\n");
+        exit(0);
+    }
+    if(sig == SIGUSR1) {
+        fifoMan.OpenReadFD(self_index);
+    }
+}
 
 int waitProc()
 {
@@ -128,14 +140,16 @@ int serve(ProcessController& procCtrl, string line)
         waitProc();
 
     /* task done, clean up fd we just got and used */
-    fifoMan.Free();
+    fifoMan.Free(self_index);
 
     return 0;
 }
 
 int main()
 {
-    SET_LOG_LEVEL(INFO);
+    signal(SIGINT, intHandler);
+    signal(SIGUSR1, intHandler);
+    SET_LOG_LEVEL(DEBUG);
 
     map<int, ProcessController> procCtrls;
 
@@ -150,14 +164,28 @@ int main()
             if (tcpServ.type == SERVER) {
                 msgCenter.UpdateFromTCPServer(tcpServ.client_info);
                 msgCenter.DealMessage();
-            } 
+
+                int list[USER_LIM] = {};
+                int rc = fifoMan.GetIndexNeedNotify(list);
+                for(int i = 0; i < rc; ++i) {
+                    for(int j = 0; j < tcpServ.client_info.size(); ++j) {
+                        if(tcpServ.client_info[j].connfd == msgCenter.getConnfdByIndex(list[i])) {
+                            slogf(WARN, "Send Signal SIGUSR1 to %d\n",tcpServ.client_info[j].pid);
+                            if(0 > kill(tcpServ.client_info[j].pid, SIGUSR1))
+                                slogf(WARN, "failed %s\n",strerror(errno));
+                        }
+                    }
+                }
+            }
         } else { /* good connfd */
+            self_index = msgCenter.getIndexByConnfd(connfd);
             procCtrls[connfd].connfd = connfd;
             if (Exit == serve(procCtrls[connfd], line)) {
                 tcpServ.RemoveUser(connfd);
-                //close(connfd);
-                if(tcpServ.type == CLIENT)
+                if (tcpServ.type == CLIENT)
                     exit(0);
+                else
+                    close(connfd);
             } else {
                 write(connfd, "% ", 2);
             }

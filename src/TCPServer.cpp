@@ -70,9 +70,15 @@ int TCPServer::GetRequest(string& line, int& connfd)
                 return T_Success;
             }
         }
-        if (0 == recv_data_from_socket()) {
+        int rc =  recv_data_from_socket();
+        if(rc == 0) {
             line = "";
             connfd = -1;
+            return T_Success;
+        }
+        if(rc < 0) {
+            line = "";
+            connfd = -rc;
             return T_Success;
         }
     }
@@ -82,7 +88,6 @@ int TCPServer::RemoveUser(int connfd)
 {
     for (auto it = client_info.begin(); it != client_info.end(); ++it) {
         if (it->connfd == connfd) {
-            slogf(INFO, "Found %d and Remove it!\n", connfd);
             client_info.erase(it);
             break;
         }
@@ -113,7 +118,20 @@ int TCPServer::make_socket_non_blocking(int sfd)
 
 int TCPServer::recv_data_from_socket()
 {
-    int rc = epoll_wait(epoll_fd, events, 50, 100);
+    int rc;
+    while(1) {
+        rc = epoll_wait(epoll_fd, events, 50, 100);
+        if(rc == -1) {
+            if(errno == EINTR)
+                continue;
+            else {
+                slogf(ERROR, "epoll_wait %s\n",strerror(errno));
+            }
+        }
+        else {
+            break;
+        }
+    }
     for (int i = 0; i < rc; ++i) {
         if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || !(events[i].events & EPOLLIN)) {
             client_buffers.erase(events[i].data.fd);
@@ -123,7 +141,7 @@ int TCPServer::recv_data_from_socket()
                     break;
                 }
             }
-            slogf(WARN, "close(%d) \n",events[i].data.fd);
+            slogf(WARN, "close(%d) \n", events[i].data.fd);
             close(events[i].data.fd);
             continue;
         }
@@ -144,8 +162,7 @@ int TCPServer::recv_data_from_socket()
                 /* print welcome message */
                 const char msg[] = "****************************************\n"
                                    "** Welcome to the information server. **\n"
-                                   "****************************************\n"
-                                   "% ";
+                                   "****************************************\n";
                 write(connfd, msg, sizeof(msg));
 
                 /* write user data */
@@ -169,7 +186,7 @@ int TCPServer::recv_data_from_socket()
                 if (child_pid != 0) { // parent
                     /* remember its pid and do nothing */
                     ci.pid = child_pid;
-
+                    slogf(INFO, "Serving new client with pid %d\n",child_pid);
                 } else { // child
                     type = CLIENT;
                     /* we don't need other clients connfd */
@@ -194,7 +211,7 @@ int TCPServer::recv_data_from_socket()
                         slogf(ERROR, "epoll_ctl %s\n", strerror(errno));
                     events = (epoll_event*)calloc(5, sizeof(event));
 
-                    return 0;
+                    return -connfd;
                 }
 #endif
             }
@@ -221,30 +238,30 @@ int TCPServer::recv_data_from_socket()
 int TCPServer::recycle_child()
 {
     /* only SERVER contains efficient client_info list */
-    if(type != SERVER)
+    if (type != SERVER)
         return 0;
 
     bool done = true;
     do {
         done = true;
-        for(auto it = client_info.begin(); it != client_info.end(); ++it) {
-            if(it->pid == 0)
+        for (auto it = client_info.begin(); it != client_info.end(); ++it) {
+            if (it->pid == 0)
                 continue;
             int status = 0;
             int rc = waitpid(it->pid, &status, WNOHANG);
-            if(rc == -1) {
-                slogf(WARN, "waitpid %s\n",strerror(errno));
+            if (rc == -1) {
+                slogf(WARN, "waitpid %s\n", strerror(errno));
             }
-            if(rc > 0) {
+            if (rc > 0) {
                 int connfd = it->connfd;
-                slogf(INFO, "child with connfd %d is done rc = %d\n",connfd,rc);
+                slogf(DEBUG, "child with connfd %d is done rc = %d return %d\n", connfd, rc, WEXITSTATUS(status));
                 RemoveUser(connfd);
                 close(connfd);
                 done = false;
                 break;
             }
         }
-    } while(!done);
+    } while (!done);
 
     return 0;
 }

@@ -58,14 +58,23 @@ public:
     char path[256];
 };
 
+class NamedPipePack {
+public:
+    NamedPipe np[USER_LIM][USER_LIM];
+};
+
 class NamedPipeManager {
 public:
     NamedPipeManager();
+    ~NamedPipeManager();
     int BuildPipe(int from, int to);
     int GetWriteFD(int from, int to);
     int GetReadFD(int from, int to);
-    int Free();
+    int Free(int self_index);
+
+    int GetIndexNeedNotify(int arr[USER_LIM]);
+    int OpenReadFD(int self_index);
 
 private:
-    NamedPipe np[USER_LIM][USER_LIM];
+    NamedPipePack *data;
 };

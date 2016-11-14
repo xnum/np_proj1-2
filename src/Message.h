@@ -13,6 +13,8 @@
 
 using namespace std;
 
+#define SHM_PATH "xnum"
+
 #define USER_LIM 30
 
 #define USER_SYS 30
@@ -41,6 +43,7 @@ public:
     void* mmap_ptr;
 
     MessageCenter();
+    ~MessageCenter();
     /* interactive with other class */
     void UpdateFromTCPServer(const vector<ClientInfo>& client_info);
     void UserComing(const char* ip);
@@ -53,6 +56,7 @@ public:
 
     /* helper function */
     int getIndexByConnfd(int connfd);
+    int getConnfdByIndex(int index);
     void AddMessageTo(int from_index, int to_index, const char* format, ...);
     void PrintClientDataTable();
 
@@ -68,5 +72,5 @@ public:
     void Yell(int connfd, const char* msg);
 
 private:
-    MessagePack *data;
+    MessagePack* data;
 };
