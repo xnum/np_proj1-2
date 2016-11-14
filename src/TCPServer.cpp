@@ -176,6 +176,7 @@ int TCPServer::recv_data_from_socket()
                 slogf(INFO, "New User Accepted %d\n", connfd);
 
 #ifdef SINGLE_MODE
+                write(connfd, "% ", 2);
                 /* In single_mode, just add connfd to epoll_fd */
                 event.data.fd = connfd;
                 event.events = EPOLLIN;

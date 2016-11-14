@@ -62,6 +62,17 @@ int NamedPipeManager::Free(int self_index)
     return 0;
 }
 
+int NamedPipeManager::GetIndexNeedNotify(int arr[USER_LIM])
+{
+    return 0;
+}
+
+int NamedPipeManager::OpenReadFD(int self_index)
+{
+    return 0;
+}
+
+
 #else
 /*
  * multi process

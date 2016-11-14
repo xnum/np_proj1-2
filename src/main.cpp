@@ -168,7 +168,7 @@ int main()
                 int list[USER_LIM] = {};
                 int rc = fifoMan.GetIndexNeedNotify(list);
                 for(int i = 0; i < rc; ++i) {
-                    for(int j = 0; j < tcpServ.client_info.size(); ++j) {
+                    for(size_t j = 0; j < tcpServ.client_info.size(); ++j) {
                         if(tcpServ.client_info[j].connfd == msgCenter.getConnfdByIndex(list[i])) {
                             slogf(WARN, "Send Signal SIGUSR1 to %d\n",tcpServ.client_info[j].pid);
                             if(0 > kill(tcpServ.client_info[j].pid, SIGUSR1))
