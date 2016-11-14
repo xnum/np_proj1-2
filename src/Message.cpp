@@ -27,7 +27,7 @@ void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
 
         /* new user */
         if (!find) {
-            slogf(INFO, "New User\n");
+            slogf(DEBUG, "New User\n");
             /* find empty slot */
             size_t i = 0;
             for (i = 0; i < USER_LIM; ++i) {
@@ -162,8 +162,6 @@ void MessageCenter::AddMessageTo(int from_index, int to_index,
     }
 
     pthread_mutex_unlock(&data.mutex);
-
-    DealMessage();
 }
 
 void MessageCenter::PrintClientDataTable()
@@ -239,7 +237,7 @@ void MessageCenter::ShowUsers(int connfd)
 void MessageCenter::Tell(int connfd, int to_index, const char* msg)
 {
     if (data.clients[to_index].online == false) {
-        dprintf(connfd, "user #%d is not online not \n", to_index);
+        dprintf(connfd, "user #%d is not online not \n", to_index + 1);
         return;
     }
 

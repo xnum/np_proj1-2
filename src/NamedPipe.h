@@ -42,8 +42,6 @@
 
 #include "Logger.h"
 
-#define SINGLE_MODE
-
 #define USER_LIM 30
 
 #define NP_EMPTY 0

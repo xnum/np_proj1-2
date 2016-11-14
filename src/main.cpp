@@ -46,7 +46,7 @@ int serve(ProcessController& procCtrl, string line)
     }
 
     string originLine = line;
-    for (int i = 0; i < originLine.size(); ++i) {
+    for (size_t i = 0; i < originLine.size(); ++i) {
         if (originLine[i] == '\r' || originLine[i] == '\n') {
             originLine[i] = '\0';
         }
@@ -124,7 +124,6 @@ int serve(ProcessController& procCtrl, string line)
     if (to_pipe_fd != UNINIT)
         close(to_pipe_fd);
 
-    slogf(INFO, "rc = %d\n", rc);
     if (rc == Wait || rc == Ok)
         waitProc();
 
@@ -136,6 +135,8 @@ int serve(ProcessController& procCtrl, string line)
 
 int main()
 {
+    SET_LOG_LEVEL(INFO);
+
     map<int, ProcessController> procCtrls;
 
     TCPServer tcpServ;
@@ -145,18 +146,19 @@ int main()
     while (T_Success == tcpServ.GetRequest(line /* command */,
                                            connfd /* return corresponding socket id */)) {
         msgCenter.UpdateFromTCPServer(tcpServ.client_info);
-        // slogf(DEBUG, "serving %d\n",connfd);
 
-        procCtrls[connfd].connfd = connfd;
-        if (Exit == serve(procCtrls[connfd], line)) {
-            msgCenter.UserLeft(connfd);
-            tcpServ.RemoveUser(connfd);
-            close(connfd);
+        if (connfd < 0) {
+            msgCenter.DealMessage();
         } else {
-            write(connfd, "% ", 2);
+            procCtrls[connfd].connfd = connfd;
+            if (Exit == serve(procCtrls[connfd], line)) {
+                msgCenter.UserLeft(connfd);
+                tcpServ.RemoveUser(connfd);
+                close(connfd);
+            } else {
+                write(connfd, "% ", 2);
+            }
         }
-
-        // slogf(DEBUG, "served %d\n",connfd);
     }
 
     puts("dead");

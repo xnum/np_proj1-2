@@ -25,7 +25,7 @@ extern int xxxLogLevel __attribute__((unused));
 
 #define __FILENAME__ \
     (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define SET_LOG_LEVEL(x) (xxxDebugLevel = (x))
+#define SET_LOG_LEVEL(x) (xxxLogLevel = (x))
 
 #define slogf(inputLV, format, ...)                                                                                                         \
     do {                                                                                                                                    \

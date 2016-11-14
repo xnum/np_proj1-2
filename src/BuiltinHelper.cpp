@@ -37,7 +37,7 @@ int BuiltinHelper::RunBuiltinCmd(ProcessController& procCtrl, string line)
         int to;
         ss >> unused >> to;
         getline(ss, msg);
-        msgCenter.Tell(procCtrl.connfd, to + 1, msg.c_str());
+        msgCenter.Tell(procCtrl.connfd, to - 1, msg.c_str());
         return Success;
     }
 

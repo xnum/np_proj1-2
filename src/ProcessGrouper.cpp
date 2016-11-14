@@ -92,19 +92,19 @@ int ProcessGrouper::Start(int connfd, NumberedPipeConfig npc, char** envp)
 
         /* for last and first command */
         if (i == 0 && firstStdin != UNINIT) {
-            slogf(INFO, "firstStdin = %d\n", firstStdin);
+            slogf(DEBUG, "firstStdin = %d\n", firstStdin);
             if (0 > dup2(firstStdin, 0))
                 slogf(INFO, "%s\n", strerror(errno));
         }
 
         if (i + 1 == executors.size() && lastStdout != UNINIT) {
-            slogf(INFO, "lastStdout = %d\n", lastStdout);
+            slogf(DEBUG, "lastStdout = %d\n", lastStdout);
             if (0 > dup2(lastStdout, 1))
                 slogf(INFO, "%s\n", strerror(errno));
         }
 
         if (i + 1 == executors.size() && lastStderr != UNINIT) {
-            slogf(INFO, "lastStderr = %d\n", lastStderr);
+            slogf(DEBUG, "lastStderr = %d\n", lastStderr);
             if (0 > dup2(lastStderr, 2))
                 slogf(INFO, "%s\n", strerror(errno));
         }

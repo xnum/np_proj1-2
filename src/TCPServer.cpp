@@ -53,7 +53,6 @@ int TCPServer::Init(int port)
 int TCPServer::GetRequest(string& line, int& connfd)
 {
     while (1) {
-        recv_data_from_socket();
         for (auto& it : client_buffers) {
             auto& buffer = it.second.buffer;
             auto pos = buffer.find_first_of('\n');
@@ -66,6 +65,11 @@ int TCPServer::GetRequest(string& line, int& connfd)
                     buffer = buffer.substr(pos + 2);
                 return T_Success;
             }
+        }
+        if (0 == recv_data_from_socket()) {
+            line = "";
+            connfd = -1;
+            return T_Success;
         }
     }
 }
@@ -108,7 +112,7 @@ int TCPServer::make_socket_non_blocking(int sfd)
 
 int TCPServer::recv_data_from_socket()
 {
-    int rc = epoll_wait(epoll_fd, events, 50, -1);
+    int rc = epoll_wait(epoll_fd, events, 50, 100);
     for (int i = 0; i < rc; ++i) {
         if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP) || !(events[i].events & EPOLLIN)) {
             client_buffers.erase(events[i].data.fd);
@@ -127,24 +131,22 @@ int TCPServer::recv_data_from_socket()
                 socklen_t len = sizeof(cAddr);
                 bzero((char*)&cAddr, sizeof(cAddr));
 
-                int connfd;
-                connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len);
+                /* accept new user */
+                int connfd = accept(sockfd, (struct sockaddr*)&cAddr, &len);
                 if (connfd < 0) {
                     if (errno == EAGAIN || errno == EWOULDBLOCK)
                         break;
                     slogf(ERROR, "accept() %s\n", strerror(errno));
                 }
-                event.data.fd = connfd;
-                event.events = EPOLLIN;
-                if (0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &event))
-                    slogf(ERROR, "epoll_ctl");
 
+                /* print welcome message */
                 const char msg[] = "****************************************\n"
                                    "** Welcome to the information server. **\n"
                                    "****************************************\n"
                                    "% ";
                 write(connfd, msg, sizeof(msg));
 
+                /* write user data */
                 char* ip = inet_ntoa(cAddr.sin_addr);
                 client_info.emplace_back(ClientInfo());
                 ClientInfo& ci = *client_info.rbegin();
@@ -152,6 +154,12 @@ int TCPServer::recv_data_from_socket()
                 snprintf(ci.ip, 128, "%s/%d", ip, ntohs(cAddr.sin_port));
 
                 slogf(INFO, "New User Accepted %d\n", connfd);
+
+                /* add to listener */
+                event.data.fd = connfd;
+                event.events = EPOLLIN;
+                if (0 > epoll_ctl(epoll_fd, EPOLL_CTL_ADD, connfd, &event))
+                    slogf(ERROR, "epoll_ctl");
             }
         } else {
             while (1) {
@@ -170,5 +178,5 @@ int TCPServer::recv_data_from_socket()
             }
         }
     }
-    return 0;
+    return rc;
 }
