@@ -70,13 +70,13 @@ int TCPServer::GetRequest(string& line, int& connfd)
                 return T_Success;
             }
         }
-        int rc =  recv_data_from_socket();
-        if(rc == 0) {
+        int rc = recv_data_from_socket();
+        if (rc == 0) {
             line = "";
             connfd = -1;
             return T_Success;
         }
-        if(rc < 0) {
+        if (rc < 0) {
             line = "";
             connfd = -rc;
             return T_Success;
@@ -119,16 +119,15 @@ int TCPServer::make_socket_non_blocking(int sfd)
 int TCPServer::recv_data_from_socket()
 {
     int rc;
-    while(1) {
+    while (1) {
         rc = epoll_wait(epoll_fd, events, 50, 100);
-        if(rc == -1) {
-            if(errno == EINTR)
+        if (rc == -1) {
+            if (errno == EINTR)
                 continue;
             else {
-                slogf(ERROR, "epoll_wait %s\n",strerror(errno));
+                slogf(ERROR, "epoll_wait %s\n", strerror(errno));
             }
-        }
-        else {
+        } else {
             break;
         }
     }
@@ -187,7 +186,7 @@ int TCPServer::recv_data_from_socket()
                 if (child_pid != 0) { // parent
                     /* remember its pid and do nothing */
                     ci.pid = child_pid;
-                    slogf(INFO, "Serving new client with pid %d\n",child_pid);
+                    slogf(INFO, "Serving new client with pid %d\n", child_pid);
                 } else { // child
                     type = CLIENT;
                     /* we don't need other clients connfd */

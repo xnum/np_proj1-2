@@ -7,7 +7,7 @@ NamedPipeManager::NamedPipeManager()
 #ifdef SINGLE_MODE
     data = (NamedPipePack*)calloc(1, sizeof(NamedPipePack));
 #else
-    data = (NamedPipePack*)mmap(NULL, sizeof(NamedPipePack), PROT_READ|PROT_WRITE, MAP_ANONYMOUS|MAP_SHARED, -1, 0);
+    data = (NamedPipePack*)mmap(NULL, sizeof(NamedPipePack), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
 #endif
 
     srand(time(NULL));
@@ -72,7 +72,6 @@ int NamedPipeManager::OpenReadFD(int self_index)
     return 0;
 }
 
-
 #else
 /*
  * multi process
@@ -82,7 +81,7 @@ int NamedPipeManager::OpenReadFD(int self_index)
 int NamedPipeManager::BuildPipe(int from, int to)
 {
     slogf(DEBUG, "FIFO from %d to %d\n", from, to);
-    if(from == to) {
+    if (from == to) {
         slogf(WARN, "Don't build pipe to yourself\n");
         return -1;
     }
@@ -110,8 +109,8 @@ int NamedPipeManager::BuildPipe(int from, int to)
     slogf(INFO, "Wait open WR\n");
     rc = open(tunnel.path, O_WRONLY);
 
-    if(rc < 0) {
-        slogf(WARN, "open WRONLY %s\n",strerror(errno));
+    if (rc < 0) {
+        slogf(WARN, "open WRONLY %s\n", strerror(errno));
         tunnel.status = NP_READ;
         return -1;
     }
@@ -126,8 +125,8 @@ int NamedPipeManager::Free(int self_index)
     for (size_t i = 0; i < USER_LIM; ++i) {
         if (data->np[i][self_index].status == NP_READ) {
             slogf(DEBUG, "Free %lu %d\n", i, self_index);
-            if(0 > unlink(data->np[i][self_index].path))
-                slogf(WARN, "unlink %s\n",strerror(errno));
+            if (0 > unlink(data->np[i][self_index].path))
+                slogf(WARN, "unlink %s\n", strerror(errno));
             data->np[i][self_index] = np_initer;
         }
     }
@@ -138,12 +137,12 @@ int NamedPipeManager::Free(int self_index)
 int NamedPipeManager::GetIndexNeedNotify(int arr[USER_LIM])
 {
     int count = 0;
-    for(int i = 0; i < USER_LIM; ++i) {
+    for (int i = 0; i < USER_LIM; ++i) {
         /* from j to i */
-        for(int j = 0; j < USER_LIM; ++j) {
+        for (int j = 0; j < USER_LIM; ++j) {
             auto& tunnel = data->np[j][i];
-            if(tunnel.status == NP_WAIT_RD_OPEN) {
-                slogf(INFO, "#%d Need Open\n",i);
+            if (tunnel.status == NP_WAIT_RD_OPEN) {
+                slogf(INFO, "#%d Need Open\n", i);
                 arr[count++] = i;
                 break;
             }
@@ -155,14 +154,14 @@ int NamedPipeManager::GetIndexNeedNotify(int arr[USER_LIM])
 
 int NamedPipeManager::OpenReadFD(int self_index)
 {
-    slogf(INFO, "Signal trigerred %d\n",self_index);
-    for(int i = 0; i < USER_LIM; ++i) {
+    slogf(INFO, "Signal trigerred %d\n", self_index);
+    for (int i = 0; i < USER_LIM; ++i) {
         auto& tunnel = data->np[i][self_index];
-        if(tunnel.status == NP_WAIT_RD_OPEN) {
+        if (tunnel.status == NP_WAIT_RD_OPEN) {
             slogf(INFO, "Wait open RD\n");
             int rc = open(tunnel.path, O_RDONLY);
-            if(rc < 0) {
-                slogf(WARN, "open RDONLY %s\n",strerror(errno));
+            if (rc < 0) {
+                slogf(WARN, "open RDONLY %s\n", strerror(errno));
                 tunnel.status = NP_READ;
                 continue;
             }
@@ -212,4 +211,3 @@ int NamedPipeManager::GetReadFD(int from, int to)
 
     return tunnel.fd[0];
 }
-

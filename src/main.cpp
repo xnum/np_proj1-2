@@ -19,11 +19,11 @@ static int self_index = -1;
 
 void intHandler(int sig)
 {
-    if(sig == SIGINT) {
+    if (sig == SIGINT) {
         slogf(INFO, "Server exited gracefully\n");
         exit(0);
     }
-    if(sig == SIGUSR1) {
+    if (sig == SIGUSR1) {
         fifoMan.OpenReadFD(self_index);
     }
 }
@@ -167,12 +167,12 @@ int main()
 
                 int list[USER_LIM] = {};
                 int rc = fifoMan.GetIndexNeedNotify(list);
-                for(int i = 0; i < rc; ++i) {
-                    for(size_t j = 0; j < tcpServ.client_info.size(); ++j) {
-                        if(tcpServ.client_info[j].connfd == msgCenter.getConnfdByIndex(list[i])) {
-                            slogf(WARN, "Send Signal SIGUSR1 to %d\n",tcpServ.client_info[j].pid);
-                            if(0 > kill(tcpServ.client_info[j].pid, SIGUSR1))
-                                slogf(WARN, "failed %s\n",strerror(errno));
+                for (int i = 0; i < rc; ++i) {
+                    for (size_t j = 0; j < tcpServ.client_info.size(); ++j) {
+                        if (tcpServ.client_info[j].connfd == msgCenter.getConnfdByIndex(list[i])) {
+                            slogf(WARN, "Send Signal SIGUSR1 to %d\n", tcpServ.client_info[j].pid);
+                            if (0 > kill(tcpServ.client_info[j].pid, SIGUSR1))
+                                slogf(WARN, "failed %s\n", strerror(errno));
                         }
                     }
                 }

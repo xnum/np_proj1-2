@@ -76,5 +76,5 @@ public:
     int OpenReadFD(int self_index);
 
 private:
-    NamedPipePack *data;
+    NamedPipePack* data;
 };

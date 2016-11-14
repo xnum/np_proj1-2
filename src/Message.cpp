@@ -26,7 +26,6 @@ MessageCenter::MessageCenter()
 
 MessageCenter::~MessageCenter()
 {
-
 }
 
 void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
@@ -157,7 +156,7 @@ void MessageCenter::PipeNotExist(int from_index, int to_index)
 
 int MessageCenter::getIndexByConnfd(int connfd)
 {
-    while(1) {
+    while (1) {
         for (int i = 0; i < USER_LIM; ++i) {
             if (connfd == data->clients[i].connfd)
                 return i;
@@ -170,7 +169,6 @@ int MessageCenter::getConnfdByIndex(int index)
 {
     return data->clients[index].connfd;
 }
-
 
 void MessageCenter::AddMessageTo(int from_index, int to_index,
                                  const char* format, ...)
