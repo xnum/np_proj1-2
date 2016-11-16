@@ -120,7 +120,7 @@ int TCPServer::recv_data_from_socket()
 {
     int rc;
     while (1) {
-        rc = epoll_wait(epoll_fd, events, 50, 100);
+        rc = epoll_wait(epoll_fd, events, 50, 50);
         if (rc == -1) {
             if (errno == EINTR)
                 continue;
@@ -162,7 +162,7 @@ int TCPServer::recv_data_from_socket()
                 const char msg[] = "****************************************\n"
                                    "** Welcome to the information server. **\n"
                                    "****************************************\n";
-                write(connfd, msg, sizeof(msg));
+                write(connfd, msg, sizeof(msg) - 1);
 
                 /* write user data */
                 char* ip = inet_ntoa(cAddr.sin_addr);
@@ -175,7 +175,7 @@ int TCPServer::recv_data_from_socket()
                 slogf(INFO, "New User Accepted %d\n", connfd);
 
 #ifdef SINGLE_MODE
-                write(connfd, "% ", 2);
+                write(connfd, "% ", 3);
                 /* In single_mode, just add connfd to epoll_fd */
                 event.data.fd = connfd;
                 event.events = EPOLLIN;

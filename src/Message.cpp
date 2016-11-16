@@ -72,7 +72,7 @@ void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
             empty_slot.online = true;
             empty_slot.connfd = curr_user.connfd;
             strncpy(empty_slot.ip, curr_user.ip, 127);
-            strncpy(empty_slot.name, "(No Name)", 127);
+            strncpy(empty_slot.name, "(no name)", 127);
             check_online[i] = 1;
 
             slogf(INFO, "Write To Slot #%lu(%d) and Welcome!!\n", i,

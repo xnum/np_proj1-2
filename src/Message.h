@@ -57,6 +57,10 @@ public:
     /* helper function */
     int getIndexByConnfd(int connfd);
     int getConnfdByIndex(int index);
+    bool isOnline(int index)
+    {
+        return data->clients[index].online;
+    }
     void AddMessageTo(int from_index, int to_index, const char* format, ...);
     void PrintClientDataTable();
 

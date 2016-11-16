@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 #include <map>
+#include <vector>
 #include <algorithm>
 #include <signal.h>
 #include <fcntl.h>

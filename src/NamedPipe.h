@@ -53,7 +53,7 @@ using namespace std;
 
 class NamedPipe {
 public:
-    int status;
+    atomic<int> status;
     int fd[2];
     char path[256];
 };

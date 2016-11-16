@@ -92,7 +92,7 @@ void BuiltinHelper::EnvHelper(ProcessController& procCtrl, const string& line)
             printf("getenv error: Not Matched\n");
             return;
         } else
-            printf("%s=%s\n", cmd.args[0].c_str(), val.c_str());
+            dprintf(procCtrl.connfd, "%s=%s\n", cmd.args[0].c_str(), val.c_str());
     } else {
         puts("Command Example: ");
         puts("% setenv PATH bin");

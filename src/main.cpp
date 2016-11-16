@@ -99,6 +99,10 @@ int serve(ProcessController& procCtrl, string line)
     int self_index = msgCenter.getIndexByConnfd(procCtrl.connfd);
     if (to != UNINIT) {
         msgCenter.CreatedPipe(self_index, to - 1, originLine.c_str());
+        if (false == msgCenter.isOnline(to - 1)) {
+            dprintf(procCtrl.connfd, "user is not online");
+            return 0;
+        }
         if (0 > fifoMan.BuildPipe(self_index, to - 1)) {
             msgCenter.PipeExist(self_index, to - 1);
             // dprintf(procCtrl.connfd,"Build Pipe Failed (Exists?) .\n");
@@ -187,7 +191,7 @@ int main()
                 else
                     close(connfd);
             } else {
-                write(connfd, "% ", 2);
+                write(connfd, "% ", 3);
             }
         }
     }

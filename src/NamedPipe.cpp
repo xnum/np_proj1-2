@@ -1,6 +1,6 @@
 #include "NamedPipe.h"
 
-static NamedPipe np_initer = { NP_EMPTY, { -1, -1 }, {} };
+//static NamedPipe np_initer = { NP_EMPTY, { -1, -1 }, {} };
 
 NamedPipeManager::NamedPipeManager()
 {
@@ -14,7 +14,10 @@ NamedPipeManager::NamedPipeManager()
     slogf(INFO, "Set All FIFO state == EMPTY\n");
     for (size_t i = 0; i < USER_LIM; ++i) {
         for (size_t j = 0; j < USER_LIM; ++j) {
-            data->np[i][j] = np_initer;
+            data->np[i][j].status = NP_EMPTY;
+            data->np[i][j].fd[0] = -1;
+            data->np[i][j].fd[1] = -1;
+            memset(data->np[i][j].path, 0, 256);
         }
     }
 }
@@ -54,7 +57,10 @@ int NamedPipeManager::Free(int self_index)
         for (size_t j = 0; j < USER_LIM; ++j) {
             if (data->np[i][j].status == NP_READ) {
                 slogf(DEBUG, "Free %lu %lu\n", i, j);
-                data->np[i][j] = np_initer;
+                data->np[i][j].status = NP_EMPTY;
+                data->np[i][j].fd[0] = -1;
+                data->np[i][j].fd[1] = -1;
+                memset(data->np[i][j].path, 0, 256);
             }
         }
     }
@@ -80,7 +86,7 @@ int NamedPipeManager::OpenReadFD(int self_index)
 
 int NamedPipeManager::BuildPipe(int from, int to)
 {
-    slogf(DEBUG, "FIFO from %d to %d\n", from, to);
+    slogf(INFO, "Build FIFO #%d -> #%d\n", from + 1, to + 1);
     if (from == to) {
         slogf(WARN, "Don't build pipe to yourself\n");
         return -1;
@@ -88,7 +94,7 @@ int NamedPipeManager::BuildPipe(int from, int to)
 
     auto& tunnel = data->np[from][to];
     if (tunnel.status != NP_EMPTY) {
-        slogf(DEBUG, "This FIFO is not empty\n");
+        slogf(INFO, "FIFO status is not EMPTY\n");
         return -1;
     }
 
@@ -106,7 +112,7 @@ int NamedPipeManager::BuildPipe(int from, int to)
 
     tunnel.status = NP_WAIT_RD_OPEN;
 
-    slogf(INFO, "Wait open WR\n");
+    slogf(INFO, "Wait open(WRONLY)\n");
     rc = open(tunnel.path, O_WRONLY);
 
     if (rc < 0) {
@@ -115,7 +121,10 @@ int NamedPipeManager::BuildPipe(int from, int to)
         return -1;
     }
 
+    slogf(INFO, "#%d -> #%d open ok %d\n", from + 1, to + 1, rc);
+
     tunnel.fd[1] = rc;
+    tunnel.status = NP_ESTABLISHED;
 
     return 0;
 }
@@ -127,7 +136,10 @@ int NamedPipeManager::Free(int self_index)
             slogf(DEBUG, "Free %lu %d\n", i, self_index);
             if (0 > unlink(data->np[i][self_index].path))
                 slogf(WARN, "unlink %s\n", strerror(errno));
-            data->np[i][self_index] = np_initer;
+            data->np[i][self_index].status = NP_EMPTY;
+            data->np[i][self_index].fd[0] = -1;
+            data->np[i][self_index].fd[1] = -1;
+            memset(data->np[i][self_index].path, 0, 256);
         }
     }
 
@@ -154,11 +166,10 @@ int NamedPipeManager::GetIndexNeedNotify(int arr[USER_LIM])
 
 int NamedPipeManager::OpenReadFD(int self_index)
 {
-    slogf(INFO, "Signal trigerred %d\n", self_index);
+    slogf(INFO, "Signal trigerred #%d\n", self_index);
     for (int i = 0; i < USER_LIM; ++i) {
         auto& tunnel = data->np[i][self_index];
         if (tunnel.status == NP_WAIT_RD_OPEN) {
-            slogf(INFO, "Wait open RD\n");
             int rc = open(tunnel.path, O_RDONLY);
             if (rc < 0) {
                 slogf(WARN, "open RDONLY %s\n", strerror(errno));
@@ -166,6 +177,7 @@ int NamedPipeManager::OpenReadFD(int self_index)
                 continue;
             }
 
+            slogf(INFO, "#%d -> #%d wait open(RD) ok %d\n", i + 1, self_index + 1, rc);
             tunnel.fd[0] = rc;
             tunnel.status = NP_ESTABLISHED;
         }
@@ -178,10 +190,10 @@ int NamedPipeManager::OpenReadFD(int self_index)
 
 int NamedPipeManager::GetWriteFD(int from, int to)
 {
-    slogf(DEBUG, "WRITE FIFO from %d to %d\n", from, to);
+    slogf(INFO, "#%d -> #%d\n", from + 1, to + 1);
     auto& tunnel = data->np[from][to];
     if (tunnel.status != NP_ESTABLISHED) {
-        slogf(DEBUG, "This FIFO is not created\n");
+        slogf(WARN, "This FIFO is not created\n");
         return -1;
     }
 
@@ -195,10 +207,10 @@ int NamedPipeManager::GetWriteFD(int from, int to)
 
 int NamedPipeManager::GetReadFD(int from, int to)
 {
-    slogf(DEBUG, "READ FIFO from %d to %d\n", from, to);
+    slogf(INFO, "#%d -> #%d\n", from + 1, to + 1);
     auto& tunnel = data->np[from][to];
     if (tunnel.status != NP_ESTABLISHED) {
-        slogf(DEBUG, "This FIFO is not created\n");
+        slogf(WARN, "This FIFO is not created\n");
         return -1;
     }
 

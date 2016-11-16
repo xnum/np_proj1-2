@@ -81,6 +81,8 @@ int ProcessGrouper::Start(int connfd, NumberedPipeConfig npc, char** envp)
         if (exe.cmdHnd.redirectStdin != "")
             freopen(exe.cmdHnd.redirectStdin.c_str(), "r", stdin);
 
+        dup2(connfd, 2);
+
         /* pipe from previos command */
         if (curr_pfd[1] != 0) {
             dup2(curr_pfd[1], 1);
@@ -91,20 +93,17 @@ int ProcessGrouper::Start(int connfd, NumberedPipeConfig npc, char** envp)
         }
 
         /* for last and first command */
-        if (i == 0 && firstStdin != UNINIT) {
-            slogf(DEBUG, "firstStdin = %d\n", firstStdin);
+        if (i == 0 && firstStdin != UNINIT && exe.cmdHnd.redirectStdin == "") {
             if (0 > dup2(firstStdin, 0))
                 slogf(INFO, "%s\n", strerror(errno));
         }
 
-        if (i + 1 == executors.size() && lastStdout != UNINIT) {
-            slogf(DEBUG, "lastStdout = %d\n", lastStdout);
+        if (i + 1 == executors.size() && lastStdout != UNINIT && exe.cmdHnd.redirectStdout == "") {
             if (0 > dup2(lastStdout, 1))
                 slogf(INFO, "%s\n", strerror(errno));
         }
 
         if (i + 1 == executors.size() && lastStderr != UNINIT) {
-            slogf(DEBUG, "lastStderr = %d\n", lastStderr);
             if (0 > dup2(lastStderr, 2))
                 slogf(INFO, "%s\n", strerror(errno));
         }
