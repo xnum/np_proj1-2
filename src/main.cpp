@@ -122,11 +122,12 @@ int serve(ProcessController& procCtrl, string line)
     /* only need to get read fd                             */
     if (from != UNINIT) {
         int fd = 0;
-        msgCenter.ReceivePipe(from - 1, self_index, originLine.c_str());
         if (0 > (fd = fifoMan.GetReadFD(from - 1, self_index))) {
             msgCenter.PipeNotExist(from - 1, self_index);
             return 0;
         }
+
+        msgCenter.ReceivePipe(from - 1, self_index, originLine.c_str());
 
         from_pipe_fd = fd;
     }

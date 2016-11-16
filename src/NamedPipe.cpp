@@ -103,7 +103,7 @@ int NamedPipeManager::BuildPipe(int from, int to)
     for (int i = 0; i < 10; ++i) {
         file[i] = table[rand() % sizeof(table)];
     }
-    sprintf(tunnel.path, "/home/num/fifo/%s", file);
+    sprintf(tunnel.path, "/net/gcs/104/0456095/fifo/%s", file);
 
     int rc = mkfifo(tunnel.path, 0644);
     if (rc < 0) {

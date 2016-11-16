@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#define SHM_PATH "xnum"
+#define SHM_PATH ".xnum"
 
 #define USER_LIM 30
 
