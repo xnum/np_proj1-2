@@ -98,22 +98,22 @@ int serve(ProcessController& procCtrl, string line)
     int to_pipe_fd = UNINIT, from_pipe_fd = UNINIT;
     int self_index = msgCenter.getIndexByConnfd(procCtrl.connfd);
     if (to != UNINIT) {
-        msgCenter.CreatedPipe(self_index, to - 1, originLine.c_str());
         if (false == msgCenter.isOnline(to - 1)) {
-            dprintf(procCtrl.connfd, "user is not online");
+            dprintf(procCtrl.connfd, "*** Error: user #%d does not exist yet. ***\n", to);
             return 0;
         }
         if (0 > fifoMan.BuildPipe(self_index, to - 1)) {
             msgCenter.PipeExist(self_index, to - 1);
-            // dprintf(procCtrl.connfd,"Build Pipe Failed (Exists?) .\n");
             return 0;
         }
 
         int fd = 0;
         if (0 > (fd = fifoMan.GetWriteFD(self_index, to - 1))) {
-            dprintf(procCtrl.connfd, "Get Write End Failed (WTF?) .\n");
+            dprintf(procCtrl.connfd, "Fatel Error: Get Write End Failed.\n");
             return 0;
         }
+
+        msgCenter.CreatedPipe(self_index, to - 1, originLine.c_str());
 
         to_pipe_fd = fd;
     }
@@ -125,7 +125,6 @@ int serve(ProcessController& procCtrl, string line)
         msgCenter.ReceivePipe(from - 1, self_index, originLine.c_str());
         if (0 > (fd = fifoMan.GetReadFD(from - 1, self_index))) {
             msgCenter.PipeNotExist(from - 1, self_index);
-            // dprintf(procCtrl.connfd,"Get Read End Failed (Not Exists?) .\n");
             return 0;
         }
 

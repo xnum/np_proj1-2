@@ -279,7 +279,7 @@ void MessageCenter::ShowUsers(int connfd)
 void MessageCenter::Tell(int connfd, int to_index, const char* msg)
 {
     if (data->clients[to_index].online == false) {
-        dprintf(connfd, "user #%d is not online not \n", to_index + 1);
+        dprintf(connfd, "user #%d is not online\n", to_index + 1);
         return;
     }
 
