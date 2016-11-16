@@ -190,7 +190,7 @@ int main()
                 else
                     close(connfd);
             } else {
-                write(connfd, "% ", 3);
+                write(connfd, "% ", 2);
             }
         }
     }

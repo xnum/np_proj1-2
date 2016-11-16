@@ -226,7 +226,7 @@ void MessageCenter::DealMessage()
                 /* send */
                 auto& box = data->msgbox[j][i];
                 for (int k = 0; k < box.ptr; ++k) {
-                    int rc = write(data->clients[i].connfd, box.buff[k], 1025);
+                    int rc = write(data->clients[i].connfd, box.buff[k], strlen(box.buff[k]));
                     if (rc < 0) {
                         PrintClientDataTable();
                         slogf(WARN, "write(%d) error %s\n", data->clients[i].connfd, strerror(errno));
