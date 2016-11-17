@@ -186,6 +186,7 @@ int main()
             procCtrls[connfd].connfd = connfd;
             if (Exit == serve(procCtrls[connfd], line)) {
                 tcpServ.RemoveUser(connfd);
+                msgCenter.PrintLeft(connfd);
                 if (tcpServ.type == CLIENT)
                     exit(0);
                 else

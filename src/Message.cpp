@@ -74,6 +74,7 @@ void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
             strncpy(empty_slot.ip, curr_user.ip, 127);
             strncpy(empty_slot.name, "(no name)", 127);
             check_online[i] = 1;
+            new_user_ips.emplace_back(curr_user.ip);
 
             slogf(INFO, "Write To Slot #%lu(%d) and Welcome!!\n", i,
                   curr_user.connfd);
@@ -105,7 +106,6 @@ void MessageCenter::UserLeft(int connfd)
     pthread_mutex_lock(&data->mutex);
 
     int index = getIndexByConnfd(connfd);
-
     data->clients[index].online = false;
 
     pthread_mutex_unlock(&data->mutex);
@@ -242,8 +242,25 @@ void MessageCenter::DealMessage()
     pthread_mutex_unlock(&data->mutex);
 }
 
+void MessageCenter::PrintLeft(int connfd)
+{
+    for (size_t i = 0; i < USER_LIM; ++i) {
+        if(data->clients[i].connfd == connfd) {
+            dprintf(connfd, "*** User '%s' left. ***\n",
+                    data->clients[i].name);
+            return;
+        }
+    }
+}
+
 void MessageCenter::SetName(int connfd, const char* name)
 {
+    for (size_t i = 0; i < USER_LIM; ++i) {
+        if( !strcmp(data->clients[i].name, name)) {
+            dprintf(connfd, "*** User '(%s)' already exists. ***\n",name);
+            return;
+        }
+    }
 
     for (size_t i = 0; i < USER_LIM; ++i) {
         if (data->clients[i].connfd == connfd) {
@@ -262,13 +279,13 @@ void MessageCenter::ShowUsers(int connfd)
 
     dprintf(
         connfd,
-        "  <sockd> <nickname>      <IP/port>                    <indicate me>\n");
+        "<ID>\t<nickname>\t<IP/port>\t<indicate me>\n");
     for (size_t i = 0; i < USER_LIM; ++i) {
         if (data->clients[i].online == true) {
-            dprintf(connfd, "  %-8lu%-16s%-29s", i + 1, data->clients[i].name,
+            dprintf(connfd, "%lu\t%s\t%s\t", i + 1, data->clients[i].name,
                     data->clients[i].ip);
             if (data->clients[i].connfd == connfd)
-                dprintf(connfd, "<- me");
+                dprintf(connfd, "<-me");
             dprintf(connfd, "\n");
         }
     }
@@ -279,18 +296,18 @@ void MessageCenter::ShowUsers(int connfd)
 void MessageCenter::Tell(int connfd, int to_index, const char* msg)
 {
     if (data->clients[to_index].online == false) {
-        dprintf(connfd, "user #%d is not online\n", to_index + 1);
+        dprintf(connfd, "*** Error: user #(%d) does not exist yet. ***\n", to_index + 1);
         return;
     }
 
     int from_index = getIndexByConnfd(connfd);
-    AddMessageTo(from_index, to_index, "*** %s told you ***:  %s\n",
+    AddMessageTo(from_index, to_index, "*** %s told you ***: %s\n",
                  data->clients[from_index].name, msg);
 }
 
 void MessageCenter::Yell(int connfd, const char* msg)
 {
     int from_index = getIndexByConnfd(connfd);
-    AddMessageTo(from_index, USER_ALL, "*** %s yelled ***:  %s\n",
+    AddMessageTo(from_index, USER_ALL, "*** %s yelled ***: %s\n",
                  data->clients[from_index].name, msg);
 }

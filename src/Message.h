@@ -66,6 +66,7 @@ public:
 
     /* print message to clients , must only server call this */
     void DealMessage();
+    void PrintLeft(int connfd);
 
     /* API direct called by interface
      anybody call these function need passed its connfd
