@@ -2,94 +2,80 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
+#include <cstdarg>
 #include <atomic>
+#include <pthread.h>
+#include "Logger.h"
+#include "TCPServer.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <errno.h>
-
-#include "Logger.h"
-
-#define CI_SIZE 30
-#define MMAP_SIZE (sizeof(MessagePack)*2)
-//16 * 1024 * 1024
 
 using namespace std;
 
-struct ClientInfo {
-    int id;
-    char name[128];
-    char ip[128];
-    int online;
-};
+#define SHM_PATH ".xnum"
 
-struct MessageBuffer {
-    char buff[10][1024];
-    atomic<int> ptr;
-};
+#define USER_LIM 30
 
-struct Broadcast {
-    char buff[1024];
-    int from;
-    atomic<bool> use;
-};
+#define USER_SYS 30
+#define USER_ALL -1
 
-#define NP_UNINIT 0
-#define NP_OPENED 1
-#define NP_WAIT 2
-#define NP_OK 3
-#define NP_USING 4
+class MessagePack {
+public:
+    struct ClientData {
+        int connfd; /* identify user by its connfd */
+        char name[128];
+        char ip[128];
+        atomic<bool> online;
+    } clients[USER_LIM]; /* id == index */
 
-class NamedPipe {
-    public:
-    char path[128];
-    atomic<int> status;
-    int read_fd;
-    int write_fd;
+    struct MessageBox {
+        char buff[10][1025];
+        int ptr;
+    } msgbox[USER_LIM + 1][USER_LIM];
 
-    int Init();
-    int GetReadEnd();
-    int GetWriteEnd();
-};
-
-struct MessagePack {
-    ClientInfo client_info[30];
-    MessageBuffer msg_box[30][30];
-    Broadcast bc;
-    int ci_ptr;
-    NamedPipe pipe[30][30];
+    pthread_mutex_t mutex;
 };
 
 class MessageCenter {
-    public:
-        int self_index;
+public:
+    int shm_fd;
+    void* mmap_ptr;
 
-        MessageCenter();
-        ~MessageCenter();
+    MessageCenter();
+    ~MessageCenter();
+    /* interactive with other class */
+    void UpdateFromTCPServer(const vector<ClientInfo>& client_info);
+    void UserComing(const char* ip);
+    void UserLeft(int connfd);
+    void CreatedPipe(int from_index, int to_index, const char* command);
+    void ReceivePipe(int from_index, int to_index, const char* command);
 
-        int AddUser(int,char *name,char *ip);
-        void ShowUsers(int id);
-        void RemoveUser(int id);
-        void SetName(int id,const char *name);
-        
-        void AddBroadCast(const char *msg,int from);
-        int GetBroadCast(char *msg, int size);
+    void PipeExist(int from_index, int to_index);
+    void PipeNotExist(int from_index, int to_index);
 
-        int Send(int id,const char *msg);
-        int Trans(int from,int to, int to_fd);
+    /* helper function */
+    int getIndexByConnfd(int connfd);
+    int getConnfdByIndex(int index);
+    bool isOnline(int index)
+    {
+        return data->clients[index].online;
+    }
+    void AddMessageTo(int from_index, int to_index, const char* format, ...);
+    void PrintClientDataTable();
 
-        int OpenReadEnd();
-        int OpenWriteEnd(int);
-        int Notify(int,int);
-        int GetReadEnd(int);
-        int FreeNamedPipe(int target);
+    /* print message to clients , must only server call this */
+    void DealMessage();
+    void PrintLeft(int connfd);
 
-        void MentionNamedPipe(int, const char*);
-        void UsingNamedPipe(int , const char* );
-    private:
-        MessagePack *data;
+    /* API direct called by interface
+     anybody call these function need passed its connfd
+   */
+    void SetName(int connfd, const char* name);
+    void ShowUsers(int connfd);
+    void Tell(int connfd, int to_index, const char* msg);
+    void Yell(int connfd, const char* msg);
 
-        int shm_fd;
-        void *mmap_ptr;
+private:
+    MessagePack* data;
 };

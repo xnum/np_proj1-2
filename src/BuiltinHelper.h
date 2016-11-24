@@ -3,23 +3,20 @@
 #include "EnvironManager.h"
 #include "Message.h"
 #include "Logger.h"
+#include "Message.h"
 
-extern ProcessController procCtrl;
+#define BH_IF_IS(rc, param) ((rc& param))
+
 extern MessageCenter msgCenter;
-
-#define BH_IF_IS(rc,param) ((rc&param))
 
 class BuiltinHelper {
 public:
-	static bool IsSupportCmd(string);
-	static int RunBuiltinCmd(string);
+    static bool IsSupportCmd(string);
+    static int RunBuiltinCmd(ProcessController&, string);
+
 private:
-	static bool isStartWith(const string& str, const string& pat);
+    static bool isStartWith(const string& str, const string& pat);
 
-	static void GoExit();
-	static void EnvHelper(const string&);
-	static int BringToFront(const string&);
-    static int BringToBack(const string&);
+    static void GoExit();
+    static void EnvHelper(ProcessController&, const string&);
 };
-
-

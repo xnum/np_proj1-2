@@ -1,30 +1,30 @@
 #include "InputHandler.h"
 
-int getch (void)
+int getch(void)
 {
     int ch;
-	/*
-    struct termios oldt, newt;
- 
-    if( -1 == tcgetattr(STDIN_FILENO, &oldt)) {
-        printf("0 tcgetattr error: %s\n",strerror(errno));
-        exit(1);
-    }
-    memcpy(&newt, &oldt, sizeof(newt));
-    newt.c_lflag &= ~( ECHO | ICANON | ECHOE | ECHOK |
-                       ECHONL | ECHOPRT | ECHOKE | ICRNL);
-    if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &newt)) {
-        printf("1 tcgetattr error: %s\n",strerror(errno));
-        exit(1);
-    }
-	*/
+    /*
+struct termios oldt, newt;
+
+if( -1 == tcgetattr(STDIN_FILENO, &oldt)) {
+  printf("0 tcgetattr error: %s\n",strerror(errno));
+  exit(1);
+}
+memcpy(&newt, &oldt, sizeof(newt));
+newt.c_lflag &= ~( ECHO | ICANON | ECHOE | ECHOK |
+                 ECHONL | ECHOPRT | ECHOKE | ICRNL);
+if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &newt)) {
+  printf("1 tcgetattr error: %s\n",strerror(errno));
+  exit(1);
+}
+  */
     ch = getchar();
-	/*
-    if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &oldt)) {
-        printf("2 tcgetattr error: %s\n",strerror(errno));
-        exit(1);
-    }
-	*/
+    /*
+if( -1 == tcsetattr(STDIN_FILENO, TCSANOW, &oldt)) {
+  printf("2 tcgetattr error: %s\n",strerror(errno));
+  exit(1);
+}
+  */
 
     return ch;
 }
@@ -41,58 +41,56 @@ string InputHandler::Getline()
     auto line = history.rbegin();
 
     bool illegal = false;
-    while(1)
-    {
+    while (1) {
         int ch = getch();
-		if(ch == EOF)
-			return "";
-        if(ch == KeyEnter) {
-			//putchar('\n');
-            if(illegal)
+        if (ch == EOF)
+            return "";
+        if (ch == KeyEnter) {
+            // putchar('\n');
+            if (illegal)
                 return "";
             return *line;
-		}
-		if(ch == '\033') {
-			getch(); 
-			ch = getch();
-			if(ch == 'A') // up
+        }
+        if (ch == '\033') {
+            getch();
+            ch = getch();
+            if (ch == 'A') // up
             {
-                if(line+1 != history.rend()) {
+                if (line + 1 != history.rend()) {
                     putchar('\r');
                     int length = line->size();
                     line++;
-                    printf("$ %-*s",length,line->c_str());
-                    for( size_t i = 0 ; i < length - line->size() + 2 ; ++i ) {
+                    printf("$ %-*s", length, line->c_str());
+                    for (size_t i = 0; i < length - line->size() + 2; ++i) {
                         putchar('\b');
                     }
                 }
             }
-			if(ch == 'B') // down
-				putchar('B');
-			if(ch == 'C') // right
-				putchar('C');
-			if(ch == 'D') // left
-				putchar('D');
-			continue;
-		}
-        if(ch == KeyBackSpace) {
-            printf("\b\033[K");
-            if(line->size() > 0)
-                line->pop_back();
-			continue;
-        }
-        if(ch == '/') {
-            printf("DO NOT USE '/'\n");
-            illegal = true;
-			continue;
-        }
-        if(ch == 0x0D) {
+            if (ch == 'B') // down
+                putchar('B');
+            if (ch == 'C') // right
+                putchar('C');
+            if (ch == 'D') // left
+                putchar('D');
             continue;
         }
-        if(ch != KeyTab && ch != KeyBackSpace) {
-            //putchar(ch);
+        if (ch == KeyBackSpace) {
+            printf("\b\033[K");
+            if (line->size() > 0)
+                line->pop_back();
+            continue;
+        }
+        if (ch == '/') {
+            printf("DO NOT USE '/'\n");
+            illegal = true;
+            continue;
+        }
+        if (ch == 0x0D) {
+            continue;
+        }
+        if (ch != KeyTab && ch != KeyBackSpace) {
+            // putchar(ch);
             *line += ch;
         }
-
     }
 }

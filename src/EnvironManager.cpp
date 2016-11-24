@@ -15,7 +15,7 @@ int EnvironManager::setenv(const string& key, const string& val)
 string EnvironManager::getenv(const string& key)
 {
     const auto& it = env_list.find(key);
-    if( it == env_list.end() )
+    if (it == env_list.end())
         return "";
     else
         return it->second;
@@ -24,10 +24,10 @@ string EnvironManager::getenv(const string& key)
 char** EnvironManager::ToEnvp()
 {
     Free();
-    envp = (char**)calloc(env_list.size()+1, sizeof(char*));
+    envp = (char**)calloc(env_list.size() + 1, sizeof(char*));
     int count = 0;
-    for(auto it : env_list) {
-        string tmp = ((it.first)+"="+(it.second));
+    for (auto it : env_list) {
+        string tmp = ((it.first) + "=" + (it.second));
         envp[count++] = strdup(tmp.c_str());
     }
     envp[env_list.size()] = NULL;
@@ -37,10 +37,9 @@ char** EnvironManager::ToEnvp()
 
 void EnvironManager::Free()
 {
-    if(envp!=NULL)
-    {
-        char **ptr = envp;
-        while( *ptr != NULL )
+    if (envp != NULL) {
+        char** ptr = envp;
+        while (*ptr != NULL)
             free(*ptr++);
         free(envp);
     }

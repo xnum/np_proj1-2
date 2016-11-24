@@ -1,294 +1,313 @@
 #include "Message.h"
 
-int NamedPipe::Init()
-{
-    srand(time(NULL));
-    if(status == NP_UNINIT) {
-        char table[] = "qwertyuioplkjhgfdsazxcvbnm0987654321";
-        char file[11] = {};
-        for(int i = 0 ; i < 10 ; ++i) {
-            file[i] = table[rand() % sizeof(table)];
-        }
-        sprintf(path, "/home/num/%s",file);
-
-        int rc = mkfifo(path, 0644);
-        if(rc < 0) {
-            dprintf(ERROR, "mkfifo %s\n",strerror(errno));
-        }
-
-        status = NP_OPENED;
-    }
-    else {
-        dprintf(WARN,"NamedPipe is dirty %d\n",status.load());
-    }
-
-    return 0;
-}
-
-int NamedPipe::GetReadEnd()
-{
-    int rc = open(path, O_RDONLY);
-    if(rc < 0)
-        dprintf(ERROR,"open %s\n",strerror(errno));
-    read_fd = rc;
-    status = NP_OK;
-    return rc;
-}
-
-int NamedPipe::GetWriteEnd()
-{
-    /* blocks until any process open read end */
-    int rc = open(path, O_WRONLY);
-    if(rc < 0)
-        dprintf(ERROR,"open %s\n",strerror(errno));
-    write_fd = rc;
-    return rc;
-}
-
-int MessageCenter::OpenReadEnd()
-{
-    for(int i = 0 ; i < 30 ; ++i) {
-        if(data->pipe[i][self_index].status == NP_WAIT) {
-            data->pipe[i][self_index].GetReadEnd();
-        }
-    }
-    /* We opened named pipe and write end process is happy now */
-    return 0;
-}
-
-int MessageCenter::GetReadEnd(int source)
-{
-    auto& fifo = data->pipe[source][self_index];
-    if(fifo.status != NP_OK) {
-        /* not exist */
-        printf("*** Error: the pipe #%d->#%d does not exist yet. *** \n",source+1,self_index+1);
-        return -1;
-    } 
-
-    /* when read side get fd, we tag the fifo as USING */
-    fifo.status = NP_USING;
-
-    return fifo.read_fd;
-}
-
-int MessageCenter::OpenWriteEnd(int target)
-{
-    /* setup everything */
-    auto& fifo = data->pipe[self_index][target];
-
-    /* test if exist */
-    if(fifo.status != NP_UNINIT) {
-        printf("*** Error: the pipe #%d->#%d already exists. *** \n",self_index+1,target+1);
-        //dprintf(WARN,"NamedPipe is dirty %d\n",fifo.status.load());
-        return -1;
-    }
-
-    fifo.Init();
-
-    /* wait parent notify another process */
-    fifo.status = NP_WAIT;
-    return fifo.GetWriteEnd();
-}
-
-int MessageCenter::Notify(int i, int j)
-{
-    return data->pipe[i][j].status.load();
-}
+#define MMAP_SIZE (sizeof(MessagePack))
 
 MessageCenter::MessageCenter()
 {
-    dprintf(INFO,"message pack size = %lu\n",sizeof(MessagePack));
+    slogf(INFO, "message pack size = %lu\n", sizeof(MessagePack));
 
-    if(0 > (shm_fd = shm_open("xnum", O_RDWR | O_CREAT , S_IRWXU | S_IRWXG)))
-        dprintf(ERROR,"shm_open %s\n",strerror(errno));
-    
-    if(0 > ftruncate(shm_fd, MMAP_SIZE))
-        dprintf(ERROR,"ftruncate %s\n",strerror(errno));
+    if (0 > (shm_fd = shm_open(SHM_PATH, O_RDWR | O_CREAT, S_IRWXU | S_IRWXG)))
+        slogf(ERROR, "shm_open %s\n", strerror(errno));
+
+    if (0 > ftruncate(shm_fd, MMAP_SIZE))
+        slogf(ERROR, "ftruncate %s\n", strerror(errno));
 
     mmap_ptr = mmap(0, MMAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
-    if(MAP_FAILED == mmap_ptr)
-        dprintf(ERROR,"mmap %s\n",strerror(errno));
-    void* ptr = mmap_ptr;
-
+    if (MAP_FAILED == mmap_ptr)
+        slogf(ERROR, "mmap %s\n", strerror(errno));
     memset(mmap_ptr, 0, MMAP_SIZE);
 
+    void* ptr = mmap_ptr;
+
     data = (MessagePack*)ptr;
+
+    pthread_mutex_init(&data->mutex, NULL);
 }
 
 MessageCenter::~MessageCenter()
 {
-    RemoveUser(self_index);
-    munmap(mmap_ptr, MMAP_SIZE);
-    close(shm_fd);
 }
 
-int MessageCenter::AddUser(int id, char *name, char *ip)
+void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
 {
-    if(data->ci_ptr>=CI_SIZE)
-    {
-        dprintf(WARN,"user list full\n");
-        return -1;
+    if (USER_LIM <= client_info.size())
+        slogf(WARN, "clients reached user limit\n");
+
+    vector<string> new_user_ips;
+    int check_online[USER_LIM] = {};
+
+    pthread_mutex_lock(&data->mutex);
+
+    for (size_t i = 0; i < client_info.size(); ++i) {
+        auto& curr_user = client_info[i];
+        /* compare if client is in our list */
+        bool find = false;
+        for (size_t j = 0; j < USER_LIM && !find; ++j) {
+            auto& list_user = data->clients[j];
+            if (list_user.connfd == curr_user.connfd && 0 == strcmp(list_user.ip, curr_user.ip)) {
+                find = true;
+                check_online[j] = 1;
+                break;
+            }
+        }
+
+        /* new user */
+        if (!find) {
+            slogf(DEBUG, "New User\n");
+            /* find empty slot */
+            size_t i = 0;
+            for (i = 0; i < USER_LIM; ++i) {
+                if (data->clients[i].online == false) {
+                    data->clients[i].online = true;
+                    break;
+                }
+            }
+
+            if (i >= USER_LIM) {
+                slogf(ERROR, "Find empty slot error\n");
+            }
+
+            /* write data */
+            auto& empty_slot = data->clients[i];
+            empty_slot.online = true;
+            empty_slot.connfd = curr_user.connfd;
+            strncpy(empty_slot.ip, curr_user.ip, 127);
+            strncpy(empty_slot.name, "(no name)", 127);
+            check_online[i] = 1;
+            new_user_ips.emplace_back(curr_user.ip);
+
+            slogf(INFO, "Write To Slot #%lu(%d) and Welcome!!\n", i,
+                  curr_user.connfd);
+        }
     }
 
-    int index = 0;
-    /* find unused slot */
-    for( ; index < data->ci_ptr ; ++index ) {
-        if( data->client_info[index].online == 0 )
-            break;
+    pthread_mutex_unlock(&data->mutex);
+
+    for (auto it : new_user_ips) {
+        UserComing(it.c_str());
     }
 
-    dprintf(DEBUG, "%d %s %s\n",id,name,ip);
-    data->client_info[index].id = data->ci_ptr;
-    data->client_info[index].online = 1;
-    strncpy(data->client_info[index].name, name, 128);
-    strncpy(data->client_info[index].ip, ip, 128);
-
-    char buff[1024] = {};
-    sprintf(buff, "*** User '%s' entered from %s. ***\n"
-            ,name,ip);
-    AddBroadCast(buff,-1);
-
-    if(index == data->ci_ptr)
-        data->ci_ptr++;
-    return index;
+    for (int i = 0; i < USER_LIM; ++i) {
+        if (check_online[i] == 0 && data->clients[i].online == true)
+            UserLeft(data->clients[i].connfd);
+    }
 }
 
-void MessageCenter::ShowUsers(int id)
+void MessageCenter::UserComing(const char* ip)
 {
-    printf("  <sockd> <nickname>      <IP/port>                    <indicate me>\n");
-    for(int i = 0 ; i < data->ci_ptr ; ++i)
-    {
-        if(data->client_info[i].online) {
-            printf("  %-8d%-16s%-29s",
-                    i+1,
-                    data->client_info[i].name, 
-                    data->client_info[i].ip);
-            if(i == self_index)
-                printf("<- me");
-            printf("\n");
+    AddMessageTo(USER_SYS, USER_ALL,
+                 "*** User '(no name)' entered from %s. ***\n", ip);
+}
+
+void MessageCenter::UserLeft(int connfd)
+{
+    slogf(INFO, "User (%d) left \n", connfd);
+
+    pthread_mutex_lock(&data->mutex);
+
+    int index = getIndexByConnfd(connfd);
+    data->clients[index].online = false;
+
+    pthread_mutex_unlock(&data->mutex);
+
+    AddMessageTo(USER_SYS, USER_ALL, "*** User '%s' left. ***\n",
+                 data->clients[index].name);
+
+    pthread_mutex_lock(&data->mutex);
+
+    memset(&data->clients[index], 0, sizeof(data->clients[index]));
+
+    pthread_mutex_unlock(&data->mutex);
+}
+
+void MessageCenter::CreatedPipe(int from_index, int to_index,
+                                const char* command)
+{
+    /* from_index is self */
+    AddMessageTo(from_index, USER_ALL,
+                 "*** %s (#%d) just piped '%s' to %s (#%d) ***\n",
+                 data->clients[from_index].name, from_index + 1, command,
+                 data->clients[to_index].name, to_index + 1);
+}
+
+void MessageCenter::ReceivePipe(int from_index, int to_index,
+                                const char* command)
+{
+    /* to_index is self */
+    AddMessageTo(to_index, USER_ALL,
+                 "*** %s (#%d) just received from %s (#%d) by '%s' ***\n",
+                 data->clients[to_index].name, to_index + 1,
+                 data->clients[from_index].name, from_index + 1, command);
+}
+
+void MessageCenter::PipeExist(int from_index, int to_index)
+{
+    AddMessageTo(from_index, from_index,
+                 "*** Error: the pipe #%d->#%d already exists. ***\n",
+                 from_index + 1, to_index + 1);
+}
+
+void MessageCenter::PipeNotExist(int from_index, int to_index)
+{
+    AddMessageTo(to_index, to_index,
+                 "*** Error: the pipe #%d->#%d does not exist yet. ***\n",
+                 from_index + 1, to_index + 1);
+}
+
+int MessageCenter::getIndexByConnfd(int connfd)
+{
+    while (1) {
+        for (int i = 0; i < USER_LIM; ++i) {
+            if (connfd == data->clients[i].connfd)
+                return i;
+        }
+        usleep(5000);
+    }
+}
+
+int MessageCenter::getConnfdByIndex(int index)
+{
+    return data->clients[index].connfd;
+}
+
+void MessageCenter::AddMessageTo(int from_index, int to_index,
+                                 const char* format, ...)
+{
+    pthread_mutex_lock(&data->mutex);
+
+    /* append message to certain message box */
+    if (to_index != USER_ALL) {
+        auto& box = data->msgbox[from_index][to_index];
+        if (box.ptr > 10)
+            return;
+        memset(box.buff[box.ptr], 0, 1025);
+        va_list args;
+        va_start(args, format);
+        vsnprintf(box.buff[box.ptr], 1024, format, args);
+        va_end(args);
+        box.ptr++;
+    } else {
+        /* for Boardcast */
+        for (size_t i = 0; i < USER_LIM; ++i) {
+            if (data->clients[i].online == true) {
+                auto& box = data->msgbox[from_index][i];
+                if (box.ptr > 10)
+                    continue;
+                memset(box.buff[box.ptr], 0, 1025);
+                va_list args;
+                va_start(args, format);
+                vsnprintf(box.buff[box.ptr], 1024, format, args);
+                va_end(args);
+                box.ptr++;
+            }
+        }
+    }
+
+    pthread_mutex_unlock(&data->mutex);
+}
+
+void MessageCenter::PrintClientDataTable()
+{
+    printf("|--ID--|connfd|----Name----|--------IP--------|online|\n");
+    for (int i = 0; i < 4; ++i) {
+        auto& cli = data->clients[i];
+        printf("|%-6d|%6d|%12s|%18s|%6d|\n", i, cli.connfd, cli.name, cli.ip,
+               cli.online.load());
+    }
+}
+
+void MessageCenter::DealMessage()
+{
+    pthread_mutex_lock(&data->mutex);
+
+    for (size_t i = 0; i < USER_LIM; ++i) {
+        for (size_t j = 0; j < USER_LIM + 1; ++j) { // USER_SYS
+            if (data->clients[i].online == true) {
+                /* send */
+                auto& box = data->msgbox[j][i];
+                for (int k = 0; k < box.ptr; ++k) {
+                    int rc = write(data->clients[i].connfd, box.buff[k], strlen(box.buff[k]));
+                    if (rc < 0) {
+                        PrintClientDataTable();
+                        slogf(WARN, "write(%d) error %s\n", data->clients[i].connfd, strerror(errno));
+                        // maybe disconnected
+                        break;
+                    }
+                }
+            }
+            memset(&data->msgbox[j][i], 0, sizeof data->msgbox[j][i]);
+        }
+    }
+
+    pthread_mutex_unlock(&data->mutex);
+}
+
+void MessageCenter::PrintLeft(int connfd)
+{
+    for (size_t i = 0; i < USER_LIM; ++i) {
+        if(data->clients[i].connfd == connfd) {
+            dprintf(connfd, "*** User '%s' left. ***\n",
+                    data->clients[i].name);
+            return;
         }
     }
 }
 
-void MessageCenter::RemoveUser(int id)
+void MessageCenter::SetName(int connfd, const char* name)
 {
-    data->client_info[id].online = 0;
-
-    char buff[1024] = {};
-    sprintf(buff, "*** User '%s' left. ***\n"
-            ,data->client_info[id].name);
-    AddBroadCast(buff,-1);
-}
-
-void MessageCenter::SetName(int id, const char *name)
-{
-    strncpy(data->client_info[id].name, name, 128);
-    char buff[1024];
-    sprintf(buff, "*** User from %s is named '%s'. ***\n",
-            data->client_info[id].ip,name);
-    AddBroadCast(buff,-1);
-}
-
-void MessageCenter::AddBroadCast(const char *msg,int from)
-{
-    while(data->bc.use != false);
-
-    strncpy(data->bc.buff, msg, 1024);
-    data->bc.from = from;
-    data->bc.use = true;
-}
-
-int MessageCenter::GetBroadCast(char *msg, int size)
-{
-    if(data->bc.use == true) {
-        if(data->bc.from != -1) {
-            snprintf(msg, size, "*** %s yelled ***:  %s\n",
-                    data->client_info[data->bc.from].name, data->bc.buff);
-        } else {
-            strncpy(msg, data->bc.buff, 1024);
-        }
-    }
-    memset(data->bc.buff, 0, 1024);
-    int tmp = data->bc.use == true ? 1 : 0;
-    data->bc.use = false;
-    return tmp;
-}
-
-int MessageCenter::Send(int id, const char *msg)
-{
-    auto& box = data->msg_box[self_index][id];
-    while(box.ptr == 10); /* wait until buffer is not full */
-
-    strncpy(box.buff[box.ptr], msg, 1024);
-    box.ptr++;
-
-    return 0;
-}
-
-int MessageCenter::Trans(int from, int to, int to_fd)
-{
-    auto& box = data->msg_box[from][to];
-    for(int i = 0 ; i < box.ptr ; ++i) {
-        char head[1024] = {};
-        sprintf(head,"*** %s told you ***:  ",data->client_info[from].name);
-
-        int rc = write(to_fd, head, strlen(head));
-        if(rc < 0) {
-            dprintf(WARN, "current write socket error %s\n",strerror(errno));
-        }
-
-        rc = write(to_fd, box.buff[i], strlen(box.buff[i]));
-        memset(box.buff[i], 0, 1024);
-        if(rc < 0) {
-            dprintf(WARN, "current write socket error %s\n",strerror(errno));
-        }
-        
-        write(to_fd, "\n", 1);
-    }
-
-    box.ptr = 0;
-
-    return 0;
-}
-
-void MessageCenter::MentionNamedPipe(int to, const char* cmd)
-{
-    char buff[1024] = {};
-    sprintf(buff, "*** %s (#%d) just piped '%s' to %s (#%d) *** \n",
-        data->client_info[self_index].name,
-        self_index+1,
-        cmd,
-        data->client_info[to].name,
-        to+1);
-    AddBroadCast(buff, -1);
-}
-
-void MessageCenter::UsingNamedPipe(int from, const char* cmd)
-{
-    char buff[1024] = {};
-    sprintf(buff, "*** %s (#%d) just received from %s (#%d) by '%s' *** \n",
-        data->client_info[self_index].name,
-        self_index+1,
-        data->client_info[from].name,
-        from+1,
-        cmd);
-    AddBroadCast(buff, -1);
-}
-
-int MessageCenter::FreeNamedPipe(int target)
-{
-    for(int i = 0 ; i < 30 ; ++i) {
-        auto& fifo = data->pipe[i][target];
-        if(fifo.status == NP_USING) {
-            if(0 > unlink(fifo.path))
-                dprintf(ERROR, "unlink %s\n",strerror(errno));
-            fifo.status = NP_UNINIT;
-            fifo.read_fd = -1;
-            fifo.write_fd = -1;
+    for (size_t i = 0; i < USER_LIM; ++i) {
+        if( !strcmp(data->clients[i].name, name)) {
+            dprintf(connfd, "*** User '(%s)' already exists. ***\n",name);
+            return;
         }
     }
 
-    return 0;
+    for (size_t i = 0; i < USER_LIM; ++i) {
+        if (data->clients[i].connfd == connfd) {
+            pthread_mutex_lock(&data->mutex);
+            strncpy(data->clients[i].name, name, 127);
+            pthread_mutex_unlock(&data->mutex);
+            AddMessageTo(USER_SYS, USER_ALL, "*** User from %s is named '%s'. ***\n",
+                         data->clients[i].ip, name);
+        }
+    }
 }
 
+void MessageCenter::ShowUsers(int connfd)
+{
+    pthread_mutex_lock(&data->mutex);
 
+    dprintf(
+        connfd,
+        "<ID>\t<nickname>\t<IP/port>\t<indicate me>\n");
+    for (size_t i = 0; i < USER_LIM; ++i) {
+        if (data->clients[i].online == true) {
+            dprintf(connfd, "%lu\t%s\t%s\t", i + 1, data->clients[i].name,
+                    data->clients[i].ip);
+            if (data->clients[i].connfd == connfd)
+                dprintf(connfd, "<-me");
+            dprintf(connfd, "\n");
+        }
+    }
+
+    pthread_mutex_unlock(&data->mutex);
+}
+
+void MessageCenter::Tell(int connfd, int to_index, const char* msg)
+{
+    if (data->clients[to_index].online == false) {
+        dprintf(connfd, "*** Error: user #(%d) does not exist yet. ***\n", to_index + 1);
+        return;
+    }
+
+    int from_index = getIndexByConnfd(connfd);
+    AddMessageTo(from_index, to_index, "*** %s told you ***: %s\n",
+                 data->clients[from_index].name, msg);
+}
+
+void MessageCenter::Yell(int connfd, const char* msg)
+{
+    int from_index = getIndexByConnfd(connfd);
+    AddMessageTo(from_index, USER_ALL, "*** %s yelled ***: %s\n",
+                 data->clients[from_index].name, msg);
+}

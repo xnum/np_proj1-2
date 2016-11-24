@@ -7,27 +7,23 @@
 #include "NumberedPipe.h"
 #include "Executor.h"
 
-extern MessageCenter msgCenter;
-
-enum StatusResult {
-	ProcAllDone,
-	ProcNotAllDone,
-	ProcNotMine
+enum StartResult {
+    Ok = 0,
+    Wait = 1,
+    Fail = 2
 };
 
 class ProcessGrouper {
-	public:
-		string originCmds;
+public:
+    string originCmds;
 
-		ProcessGrouper(vector<Executor> exes) :
-			executors(exes) {}
+    ProcessGrouper(vector<Executor> exes)
+        : executors(exes)
+    {
+    }
 
-		int Start(NumberedPipeConfig,char**);
-		int NotifyTerminated(pid_t);
-		int PassSignal(int sig);
-		pid_t GetPgid();
+    int Start(int connfd, NumberedPipeConfig, char**);
 
-	private:
-		vector<Executor> executors;
-		pid_t pgid;
+private:
+    vector<Executor> executors;
 };

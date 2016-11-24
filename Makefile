@@ -10,7 +10,7 @@ ifndef BC
 endif
  
 CC = g++
-CFLAGS = -std=c++11
+CFLAGS = -Wall -Wextra -std=c++11 # -DSINGLE_MODE
 LDFLAGS = -lm -lrt
  
 ifeq ($(BC),debug)
@@ -44,6 +44,9 @@ main: $(OBJS)
 $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	$(CC) $(CFLAGS) -o $@ -c $<
 	$(CC) -MM -MT $(OBJDIR)/$*.o $(CFLAGS) $(SRCDIR)/$*.cpp > $(DEPDIR)/$*.d
+
+format:
+	cd src && clang-format -style=WebKit -i *.h *.cpp
  
 clean:
 	rm -fr debug/*

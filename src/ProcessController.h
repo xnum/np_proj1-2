@@ -1,14 +1,9 @@
 #pragma once
 
 enum SimpleRetVal {
-	Failure,
-	Success,
-    Wait
-};
-
-enum PgidTarget {
-	Shell = -1,
-	ForeGround = 0
+    Failure,
+    Success,
+    Exit
 };
 
 #include "Logger.h"
@@ -17,26 +12,18 @@ enum PgidTarget {
 #include "EnvironManager.h"
 
 class ProcessController {
-	public:
-		int AddProcGroups(const vector<Executor>&, const string& cmd);
-		int StartProc(bool isfg);
-		int TakeTerminalControl(pid_t);
-		void SetShellPgid(pid_t p) { shellPgid = p; }
-		int FreeProcess(pid_t);
-		int SendSignalToFG(int sig);
-		void BackToShell();
-		int BringToFront(int index);
-		int BringToBack(int index);
-		void printJobs();
-		void RefreshJobStatus();
-        string ToPathname(string filename);
-        void SetupPwd();
+public:
+    ProcessController();
+    int AddProcGroups(const vector<Executor>&, const string& cmd);
+    int StartProc();
+    string ToPathname(string filename);
+    void SetupPwd();
 
-        EnvironManager envManager;
-        NumberedPipeManager npManager;
-        string pwd;
-	private:
-		vector<ProcessGrouper> pgrps;
-		int fgIndex;
-		pid_t shellPgid;
+    EnvironManager envManager;
+    NumberedPipeManager npManager;
+    string pwd;
+    int connfd;
+
+private:
+    vector<ProcessGrouper> pgrps;
 };
