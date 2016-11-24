@@ -165,12 +165,12 @@ int TCPServer::recv_data_from_socket()
                 write(connfd, msg, sizeof(msg) - 1);
 
                 /* write user data */
-                char* ip = inet_ntoa(cAddr.sin_addr);
+                const char* ip = "CGILAB"; //inet_ntoa(cAddr.sin_addr);
                 client_info.emplace_back(ClientInfo());
                 ClientInfo& ci = *client_info.rbegin();
                 ci.connfd = connfd;
                 ci.pid = 0;
-                snprintf(ci.ip, 128, "%s/%d", ip, ntohs(cAddr.sin_port));
+                snprintf(ci.ip, 128, "%s/%d", ip, 511); //ntohs(cAddr.sin_port));
 
                 slogf(INFO, "New User Accepted %d\n", connfd);
 

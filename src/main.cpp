@@ -187,6 +187,7 @@ int main()
         } else { /* good connfd */
             self_index = msgCenter.getIndexByConnfd(connfd);
             procCtrls[connfd].connfd = connfd;
+            msgCenter.DealMessage(self_index);
             if (Exit == serve(procCtrls[connfd], line)) {
                 tcpServ.RemoveUser(connfd);
                 msgCenter.PrintLeft(connfd);
