@@ -1,4 +1,5 @@
 #pragma once
+#include <execinfo.h>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -13,13 +14,10 @@
 
 using namespace std;
 
-#define SHM_PATH ".xnum"
-
 #define USER_LIM 30
 
 #define USER_SYS 30
 #define USER_ALL -1
-
 class MessagePack {
 public:
     struct ClientData {
@@ -34,7 +32,11 @@ public:
         int ptr;
     } msgbox[USER_LIM + 1][USER_LIM];
 
-    pthread_mutex_t mutex;
+    struct ticket_lock {
+        pthread_cond_t cond;
+        pthread_mutex_t mutex;
+        unsigned long queue_head, queue_tail;
+    } ticket;
 };
 
 class MessageCenter {
@@ -65,12 +67,12 @@ public:
     void PrintClientDataTable();
 
     /* print message to clients , must only server call this */
-    void DealMessage();
+    void DealMessage(int self_index);
     void PrintLeft(int connfd);
 
     /* API direct called by interface
-     anybody call these function need passed its connfd
-   */
+           anybody call these function need passed its connfd
+           */
     void SetName(int connfd, const char* name);
     void ShowUsers(int connfd);
     void Tell(int connfd, int to_index, const char* msg);

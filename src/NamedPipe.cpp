@@ -1,4 +1,5 @@
 #include "NamedPipe.h"
+#include "common.h"
 
 //static NamedPipe np_initer = { NP_EMPTY, { -1, -1 }, {} };
 
@@ -7,6 +8,12 @@ NamedPipeManager::NamedPipeManager()
 #ifdef SINGLE_MODE
     data = (NamedPipePack*)calloc(1, sizeof(NamedPipePack));
 #else
+    DIR* path = opendir(FIFO_PATH);
+    if (!path) {
+        slogf(ERROR, "FIFO dir %s Not Exists\n", FIFO_PATH);
+    }
+    closedir(path);
+
     data = (NamedPipePack*)mmap(NULL, sizeof(NamedPipePack), PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
 #endif
 
@@ -103,7 +110,7 @@ int NamedPipeManager::BuildPipe(int from, int to)
     for (int i = 0; i < 10; ++i) {
         file[i] = table[rand() % sizeof(table)];
     }
-    sprintf(tunnel.path, "/net/gcs/104/0456095/fifo/%s", file);
+    sprintf(tunnel.path, FIFO_PATH "/%s", file);
 
     int rc = mkfifo(tunnel.path, 0644);
     if (rc < 0) {

@@ -163,10 +163,12 @@ int main()
     while (T_Success == tcpServ.GetRequest(line /* command */,
                                            connfd /* return corresponding socket id */)) {
 
-        if (connfd < 0) { /* both SERVER and CLIENT returns negtive number */
+        if (connfd < 0) {
             if (tcpServ.type == SERVER) {
                 msgCenter.UpdateFromTCPServer(tcpServ.client_info);
-                msgCenter.DealMessage();
+#ifdef SINGLE_MODE
+                msgCenter.DealMessage(-1);
+#endif
 
                 int list[USER_LIM] = {};
                 int rc = fifoMan.GetIndexNeedNotify(list);
@@ -179,6 +181,8 @@ int main()
                         }
                     }
                 }
+            } else {
+                msgCenter.DealMessage(self_index);
             }
         } else { /* good connfd */
             self_index = msgCenter.getIndexByConnfd(connfd);
@@ -191,6 +195,7 @@ int main()
                 else
                     close(connfd);
             } else {
+                msgCenter.DealMessage(self_index);
                 write(connfd, "% ", 2);
             }
         }

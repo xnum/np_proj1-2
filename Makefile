@@ -11,7 +11,7 @@ endif
  
 CC = g++
 CFLAGS = -Wall -Wextra -std=c++11 # -DSINGLE_MODE
-LDFLAGS = -lm -lrt
+LDFLAGS = -lm -lrt -lpthread
  
 ifeq ($(BC),debug)
 CFLAGS += -g

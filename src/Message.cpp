@@ -1,4 +1,30 @@
 #include "Message.h"
+#include "common.h"
+
+#define Lock()                                 \
+    do {                                       \
+        break;\
+        slogf(INFO, "Lock at %s\n", __func__); \
+        unsigned long queue_me; \
+        while (0 != pthread_mutex_trylock(&data->ticket.mutex))usleep(100000); \
+        queue_me = data->ticket.queue_tail++; \
+        while (queue_me != data->ticket.queue_head) \
+        { \
+            pthread_cond_wait(&data->ticket.cond, &data->ticket.mutex); \
+        } \
+        pthread_mutex_unlock(&data->ticket.mutex); \
+    } while (0)
+
+#define Unlock()                                 \
+    do {                                         \
+        break;\
+        slogf(INFO, "Unlock at %s\n", __func__); \
+        while (0 != pthread_mutex_trylock(&data->ticket.mutex))usleep(100000); \
+        data->ticket.queue_head++; \
+        pthread_cond_broadcast(&data->ticket.cond); \
+        pthread_mutex_unlock(&data->ticket.mutex); \
+    } while (0)
+
 
 #define MMAP_SIZE (sizeof(MessagePack))
 
@@ -21,7 +47,8 @@ MessageCenter::MessageCenter()
 
     data = (MessagePack*)ptr;
 
-    pthread_mutex_init(&data->mutex, NULL);
+    data->ticket.mutex = PTHREAD_MUTEX_INITIALIZER;
+    data->ticket.cond = PTHREAD_COND_INITIALIZER;
 }
 
 MessageCenter::~MessageCenter()
@@ -36,7 +63,7 @@ void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
     vector<string> new_user_ips;
     int check_online[USER_LIM] = {};
 
-    pthread_mutex_lock(&data->mutex);
+    Lock();
 
     for (size_t i = 0; i < client_info.size(); ++i) {
         auto& curr_user = client_info[i];
@@ -81,7 +108,7 @@ void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
         }
     }
 
-    pthread_mutex_unlock(&data->mutex);
+    Unlock();
 
     for (auto it : new_user_ips) {
         UserComing(it.c_str());
@@ -103,21 +130,21 @@ void MessageCenter::UserLeft(int connfd)
 {
     slogf(INFO, "User (%d) left \n", connfd);
 
-    pthread_mutex_lock(&data->mutex);
+    Lock();
 
     int index = getIndexByConnfd(connfd);
     data->clients[index].online = false;
 
-    pthread_mutex_unlock(&data->mutex);
+    Unlock();
 
     AddMessageTo(USER_SYS, USER_ALL, "*** User '%s' left. ***\n",
                  data->clients[index].name);
 
-    pthread_mutex_lock(&data->mutex);
+    Lock();
 
     memset(&data->clients[index], 0, sizeof(data->clients[index]));
 
-    pthread_mutex_unlock(&data->mutex);
+    Unlock();
 }
 
 void MessageCenter::CreatedPipe(int from_index, int to_index,
@@ -173,7 +200,7 @@ int MessageCenter::getConnfdByIndex(int index)
 void MessageCenter::AddMessageTo(int from_index, int to_index,
                                  const char* format, ...)
 {
-    pthread_mutex_lock(&data->mutex);
+    Lock();
 
     /* append message to certain message box */
     if (to_index != USER_ALL) {
@@ -203,7 +230,7 @@ void MessageCenter::AddMessageTo(int from_index, int to_index,
         }
     }
 
-    pthread_mutex_unlock(&data->mutex);
+    Unlock();
 }
 
 void MessageCenter::PrintClientDataTable()
@@ -216,11 +243,13 @@ void MessageCenter::PrintClientDataTable()
     }
 }
 
-void MessageCenter::DealMessage()
+void MessageCenter::DealMessage(int self_index)
 {
-    pthread_mutex_lock(&data->mutex);
+    Lock();
 
     for (size_t i = 0; i < USER_LIM; ++i) {
+        if (self_index != -1)
+            i = self_index;
         for (size_t j = 0; j < USER_LIM + 1; ++j) { // USER_SYS
             if (data->clients[i].online == true) {
                 /* send */
@@ -237,15 +266,17 @@ void MessageCenter::DealMessage()
             }
             memset(&data->msgbox[j][i], 0, sizeof data->msgbox[j][i]);
         }
+        if (self_index != -1)
+            break;
     }
 
-    pthread_mutex_unlock(&data->mutex);
+    Unlock();
 }
 
 void MessageCenter::PrintLeft(int connfd)
 {
     for (size_t i = 0; i < USER_LIM; ++i) {
-        if(data->clients[i].connfd == connfd) {
+        if (data->clients[i].connfd == connfd) {
             dprintf(connfd, "*** User '%s' left. ***\n",
                     data->clients[i].name);
             return;
@@ -256,17 +287,17 @@ void MessageCenter::PrintLeft(int connfd)
 void MessageCenter::SetName(int connfd, const char* name)
 {
     for (size_t i = 0; i < USER_LIM; ++i) {
-        if( !strcmp(data->clients[i].name, name)) {
-            dprintf(connfd, "*** User '(%s)' already exists. ***\n",name);
+        if (!strcmp(data->clients[i].name, name)) {
+            dprintf(connfd, "*** User '(%s)' already exists. ***\n", name);
             return;
         }
     }
 
     for (size_t i = 0; i < USER_LIM; ++i) {
         if (data->clients[i].connfd == connfd) {
-            pthread_mutex_lock(&data->mutex);
+            Lock();
             strncpy(data->clients[i].name, name, 127);
-            pthread_mutex_unlock(&data->mutex);
+            Unlock();
             AddMessageTo(USER_SYS, USER_ALL, "*** User from %s is named '%s'. ***\n",
                          data->clients[i].ip, name);
         }
@@ -275,7 +306,7 @@ void MessageCenter::SetName(int connfd, const char* name)
 
 void MessageCenter::ShowUsers(int connfd)
 {
-    pthread_mutex_lock(&data->mutex);
+    Lock();
 
     dprintf(
         connfd,
@@ -290,7 +321,7 @@ void MessageCenter::ShowUsers(int connfd)
         }
     }
 
-    pthread_mutex_unlock(&data->mutex);
+    Unlock();
 }
 
 void MessageCenter::Tell(int connfd, int to_index, const char* msg)

@@ -71,13 +71,13 @@ int TCPServer::GetRequest(string& line, int& connfd)
             }
         }
         int rc = recv_data_from_socket();
-        if (rc == 0) {
+        if (rc == 0) { // no event comes, return to let server do other things
             line = "";
             connfd = -1;
             return T_Success;
         }
-        if (rc < 0) {
-            line = "";
+        if (rc < 0) { // new clients
+            line = ""; // return empty line to print prompt
             connfd = -rc;
             return T_Success;
         }
@@ -175,7 +175,7 @@ int TCPServer::recv_data_from_socket()
                 slogf(INFO, "New User Accepted %d\n", connfd);
 
 #ifdef SINGLE_MODE
-                write(connfd, "% ", 3);
+                write(connfd, "% ", 2);
                 /* In single_mode, just add connfd to epoll_fd */
                 event.data.fd = connfd;
                 event.events = EPOLLIN;
