@@ -4,25 +4,11 @@
 #define Lock()                                 \
     do {                                       \
         break;\
-        slogf(INFO, "Lock at %s\n", __func__); \
-        unsigned long queue_me; \
-        while (0 != pthread_mutex_trylock(&data->ticket.mutex))usleep(100000); \
-        queue_me = data->ticket.queue_tail++; \
-        while (queue_me != data->ticket.queue_head) \
-        { \
-            pthread_cond_wait(&data->ticket.cond, &data->ticket.mutex); \
-        } \
-        pthread_mutex_unlock(&data->ticket.mutex); \
     } while (0)
 
 #define Unlock()                                 \
     do {                                         \
         break;\
-        slogf(INFO, "Unlock at %s\n", __func__); \
-        while (0 != pthread_mutex_trylock(&data->ticket.mutex))usleep(100000); \
-        data->ticket.queue_head++; \
-        pthread_cond_broadcast(&data->ticket.cond); \
-        pthread_mutex_unlock(&data->ticket.mutex); \
     } while (0)
 
 
@@ -57,7 +43,7 @@ MessageCenter::~MessageCenter()
 
 void MessageCenter::UpdateFromTCPServer(const vector<ClientInfo>& client_info)
 {
-    if (USER_LIM <= client_info.size())
+    if (USER_LIM < client_info.size())
         slogf(WARN, "clients reached user limit\n");
 
     vector<string> new_user_ips;
@@ -288,7 +274,7 @@ void MessageCenter::SetName(int connfd, const char* name)
 {
     for (size_t i = 0; i < USER_LIM; ++i) {
         if (!strcmp(data->clients[i].name, name)) {
-            dprintf(connfd, "*** User '(%s)' already exists. ***\n", name);
+            dprintf(connfd, "*** User '%s' already exists. ***\n", name);
             return;
         }
     }
@@ -327,7 +313,7 @@ void MessageCenter::ShowUsers(int connfd)
 void MessageCenter::Tell(int connfd, int to_index, const char* msg)
 {
     if (data->clients[to_index].online == false) {
-        dprintf(connfd, "*** Error: user #(%d) does not exist yet. ***\n", to_index + 1);
+        dprintf(connfd, "*** Error: user #%d does not exist yet. ***\n", to_index + 1);
         return;
     }
 

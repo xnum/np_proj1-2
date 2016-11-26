@@ -42,12 +42,13 @@ extern int xxxLogLevel __attribute__((unused));
             if (inputLV == DEBUG)                                                                                                                 \
                 fprintf(stderr, CYN);                                                                                                             \
             if (inputLV == INFO)                                                                                                                  \
-                fprintf(stderr, MAG);                                                                                                             \
+                fprintf(stderr, WHT);                                                                                                             \
             if (inputLV == WARN)                                                                                                                  \
                 fprintf(stderr, YEL);                                                                                                             \
             if (inputLV == ERROR)                                                                                                                 \
                 fprintf(stderr, RED);                                                                                                             \
-            fprintf(stderr, "[%5d][%.5s] %.6s:%3d %.12s() # " format RESET, getpid(), #inputLV, __FILENAME__, __LINE__, __func__, ##__VA_ARGS__); \
+            fprintf(stderr, "[%5d][%.9s] %.9s:%3d %.12s() # " format RESET, getpid(), #inputLV, __FILENAME__, __LINE__, __func__, ##__VA_ARGS__); \
+            fflush(stderr); \
         }                                                                                                                                         \
         if ((inputLV) >= ERROR) {                                                                                                                 \
             exit(1);                                                                                                                              \

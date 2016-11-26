@@ -49,6 +49,7 @@
 #define NP_WAIT_RD_OPEN 1
 #define NP_ESTABLISHED 2
 #define NP_READ 3
+#define NP_EXPIRED 4
 
 using namespace std;
 
@@ -76,6 +77,7 @@ public:
     int GetIndexNeedNotify(int arr[USER_LIM]);
     int OpenReadFD(int self_index);
 
+    int TagExpired(int self_index);
 private:
     NamedPipePack* data;
 };

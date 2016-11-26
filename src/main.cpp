@@ -51,6 +51,8 @@ int serve(ProcessController& procCtrl, string line)
         return 0;
     }
 
+    slogf(DEBUG, "Cmd: %s\n",line.c_str());
+
     if (BuiltinHelper::IsSupportCmd(line)) {
         procCtrl.npManager.Count();
         /* Exit may return here */
@@ -134,6 +136,8 @@ int serve(ProcessController& procCtrl, string line)
 
     procCtrl.npManager.AddNamedPipe(from_pipe_fd, to_pipe_fd);
 
+    msgCenter.DealMessage(self_index);
+
     procCtrl.AddProcGroups(exes, originLine);
     int rc = procCtrl.StartProc();
 
@@ -191,7 +195,8 @@ int main()
             if (Exit == serve(procCtrls[connfd], line)) {
                 tcpServ.RemoveUser(connfd);
                 msgCenter.PrintLeft(connfd);
-                if (tcpServ.type == CLIENT)
+                fifoMan.TagExpired(self_index);
+                if (tcpServ.type == CLIENT) // multi mode
                     exit(0);
                 else
                     close(connfd);
